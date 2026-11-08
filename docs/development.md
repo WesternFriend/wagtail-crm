@@ -1,6 +1,8 @@
 # Development and testing
 
-The local host lets developers run the reusable CRM app inside real Django and Wagtail before building the payment workflow. It uses Django 5.2 LTS and Wagtail 7.4 LTS with dependencies pinned in `uv.lock`. Supported Python versions are declared in `pyproject.toml`; Python 3.12 is the initial CI baseline.
+The local host lets developers run the reusable CRM app inside real Django and Wagtail before building the payment workflow. It uses Django 5.2 LTS and Wagtail 7.4 LTS with dependencies pinned in `uv.lock`. Supported Python versions are declared in `pyproject.toml`; local development and CI use the Python version in `mise.toml`, currently 3.14.
+
+Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs lint, typing, and workflow validation prerequisites before Django checks; browser installation and testing remain explicit. `mise run dev` (alias `mise run run`) starts the loopback development server. Task commands execute from the project root.
 
 ## Layout
 
@@ -11,20 +13,23 @@ The local host lets developers run the reusable CRM app inside real Django and W
 | `tests/` | Database, form, CSRF, permission, and demo-seed checks |
 | `tests/browser/` | Chromium login, contact creation, and unauthorized-access checks |
 | `.data/` | Ignored local SQLite database, random development key, and runtime media |
-| `.github/workflows/checks.yml` | Separate Django and Chromium CI jobs |
+| `mise.toml` | Tool versions and shared setup, quality, test, and development tasks |
+| `.github/workflows/checks.yml` | Code quality, Django coverage, and Chromium CI jobs |
 
 The current Contact model is deliberately small: a display name, person/organization type, and optional email. Contacts are independent of login accounts, and shared email addresses do not automatically merge them. Financial models and the PayPal adapter are not implemented yet.
 
 ## First run
 
-Install a supported Python and [uv](https://docs.astral.sh/uv/getting-started/installation/), then run these commands from the repository root:
+Install [mise](https://mise.jdx.dev/getting-started.html), then run these commands from the repository root:
 
 ```bash
-uv sync --locked
-uv run python manage.py migrate
-uv run python manage.py seed_demo
-uv run python manage.py createsuperuser
-uv run python manage.py runserver 127.0.0.1:8000
+mise trust
+mise install
+mise run install
+mise run migrate
+mise run demo
+mise exec -- uv run --locked python manage.py createsuperuser
+mise run dev
 ```
 
 Open <http://127.0.0.1:8000/admin/> and sign in with the credentials you chose. **Contacts** appears in the Wagtail navigation. The seed command adds three synthetic contacts and a **CRM Editors** group, but creates no login accounts. It can be rerun without duplicating those contacts and refuses to run with `DEBUG` disabled.
@@ -47,11 +52,11 @@ Use individually created disposable local accounts for these checks. Wagtail red
 ## Automated checks
 
 ```bash
-make check
-make test
+mise run check
+mise run test
 ```
 
-`make check` runs Ruff, mypy, Django system checks, and migration consistency checks. `make test` runs the fast Django suite against an isolated test database and reports coverage; it does not require the development server or a browser. The default test selection explicitly excludes the browser marker.
+`mise run check` runs Ruff, mypy, actionlint, Django system checks, and migration consistency checks. `mise run test` runs the fast Django suite against an isolated test database and reports coverage; it does not require the development server or a browser. The default test selection explicitly excludes the browser marker.
 
 ## Code quality policy
 
@@ -60,29 +65,47 @@ The Ruff policy follows the broad explicit rule families used by the [Western Fr
 Ruff owns Python formatting and import order. Mypy uses the Django plugin and Django 5.2 stubs to check the reusable app and development host, including untyped function bodies. Missing Wagtail typing information is handled by a targeted override rather than suppressing all missing imports. Coverage is initially informational; it does not substitute for the financial and authorization acceptance scenarios.
 
 ```bash
-make format
-make typecheck
-uv run pre-commit install
-make hooks
+mise run format
+mise run typecheck
+mise install
+mise run hooks-install
+mise run hooks
+mise run hooks-push
 ```
 
-The pre-commit hooks check YAML, TOML, JSON, whitespace, final newlines, merge markers, case conflicts, and oversized added files, then run Django API modernization and Ruff. Hooks use the same locked uv environment as CI. Run hooks from a Git checkout; `--all-files` covers tracked files, so add new files to Git before checking them.
+The repository uses [prek](https://prek.j178.dev/) from `mise.toml`, configured in `prek.toml`. `mise run hooks-install` installs both pre-commit and pre-push Git hooks. Run `mise install` to provision tools and `mise run install` to sync the locked Python environment first. Built-in hooks check YAML, TOML, JSON, XML, whitespace, final newlines, line endings, merge markers, filename portability, symlinks, executable/shebang consistency, private keys, and files larger than 500 KiB. The size check includes existing files. Markdown hard line breaks are preserved.
 
-The GitHub workflow has independent code-quality, Django, and Chromium jobs, read-only repository permissions, pinned action revisions, and no PR-comment automation or external coverage service. Website-specific daisyUI checks and HTML formatters are deferred until this package owns frontend templates.
+Local Python hooks use `uv run --locked` for Django 5.2 API modernization checks, Ruff lint and formatting checks, whole-project mypy, Django system checks, and missing migrations. Workflow files also run actionlint. Dependency metadata changes check lock freshness. Ruff and Django modernization report changes without rewriting Python; use `mise run format` to apply Ruff fixes. File-hygiene hooks can fix whitespace and line endings; inspect and restage their changes before committing. Private-key detection is a basic guard, not a complete credential scanner.
+
+Commit hooks inspect staged files; push hooks additionally run the fast Django test suite when relevant Python/configuration files changed. `mise run hooks` checks tracked **and untracked** nonignored files without staging them; `mise run hooks-push` runs the same selection including fast tests. Direct `prek run --all-files` covers tracked files only. To check an individual new file, use `prek run --files path/to/file.py`. Deleted files are omitted by prek. Browser tests remain an explicit `mise run browser` check.
+
+Installed BMAD tooling in `.agents/`, `.claude/`, `_bmad/`, and `.github/agents/` is excluded from these hooks; project planning documents in `_bmad-output/` remain checked. Ruff also excludes vendored tooling so `mise run check` and hooks share the project lint scope. Run hooks from a Git checkout with mise tools on `PATH`. Neither command stages or commits changes.
+
+## GitHub Actions
+
+The `Checks` workflow runs on pull requests, pushes to `main`, and manual dispatch. Three independent Ubuntu 24.04 jobs install tools through mise and run `mise run install` against `uv.lock`:
+
+- Code quality: `mise run check` and `mise run hooks`.
+- Django tests: `mise run test`, including coverage in the job log and a runner-local XML report.
+- Chromium: `mise run browser-install -- --with-deps`, then `mise run browser`.
+
+This covers the checks in `mise run hooks-push` while the dedicated test job adds coverage; tests need not run twice in CI. Chromium installs its Linux system libraries as well as the browser. CI tests use synthetic records and isolated test databases, without production credentials or a running development server.
+
+The workflow uses read-only repository permissions, disables persisted checkout credentials, pins external actions to full commit SHAs with release comments, and cancels superseded runs. It has no deployment, external coverage service, or PR-comment automation. Use `mise run workflow-lint` to validate workflow syntax and expressions locally. Website-specific daisyUI checks and HTML formatters are deferred until this package owns frontend templates.
 
 ## Browser checks
 
 Install the Playwright browser once, then run the browser suite:
 
 ```bash
-uv run playwright install chromium
-make browser
+mise run browser-install
+mise run browser
 ```
 
 Linux CI or a minimal Linux machine may need system browser dependencies:
 
 ```bash
-uv run playwright install --with-deps chromium
+mise run browser-install -- --with-deps
 ```
 
 The browser suite starts Django's static live server and creates its own synthetic staff accounts in an isolated test database. It does not use the local development administrator or require a separately running server. Tests exercise actual login, Wagtail navigation, creating a contact, and denial for a user without CRM permissions.
@@ -90,7 +113,7 @@ The browser suite starts Django's static live server and creates its own synthet
 If a managed environment supplies Chromium instead of allowing downloads, select it explicitly:
 
 ```bash
-PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium make browser
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium mise run browser
 ```
 
 An optional `CRM_SCREENSHOTS_DIR` environment variable captures a synthetic Contacts screenshot after the successful creation check. Do not commit screenshots or other artifacts containing real donor data. Browser installation or launch failures must be reported as blocked checks, not treated as passing or silently skipped.

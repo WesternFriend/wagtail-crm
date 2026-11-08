@@ -8,26 +8,32 @@ Development scaffold. The reusable app runs inside a local Django/Wagtail host w
 
 ## Run locally
 
-Install Python 3.12 or later within the supported range in `pyproject.toml`, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Then run:
+Install [mise](https://mise.jdx.dev/getting-started.html), then run from the repository root:
 
 ```bash
-uv sync --locked
-uv run python manage.py migrate
-uv run python manage.py seed_demo
-uv run python manage.py createsuperuser
-uv run python manage.py runserver 127.0.0.1:8000
+mise trust
+mise install
+mise run install
+mise run migrate
+mise run demo
+mise exec -- uv run --locked python manage.py createsuperuser
+mise run dev
 ```
 
 Open <http://127.0.0.1:8000/admin/> and select **Contacts**. Set your own local login credentials; no default administrator password is shipped. This host is for synthetic local data and is not a production settings module.
 
 ```bash
-make check
-make test
-uv run playwright install chromium
-make browser
+mise run check
+mise run hooks-install
+mise run hooks
+mise run test
+mise run browser-install
+mise run browser
 ```
 
 See [Development and testing](docs/development.md) for setup details, browser prerequisites, the optional PostgreSQL connection, and the manual UI checklist.
+
+Run `mise tasks` to list available tasks. `mise install` provisions tools; `mise run install` installs the project's locked Python dependencies.
 
 ## First use case
 

@@ -1,4 +1,80 @@
 [tools]
+actionlint = "latest"
 gh = "latest"
+prek = "latest"
 python = "3.14"
 uv = "latest"
+
+[tasks.install]
+description = "Install the locked Python dependencies"
+run = "uv sync --locked"
+
+[tasks.migrate]
+description = "Apply database migrations"
+run = "uv run --locked python manage.py migrate"
+
+[tasks.demo]
+description = "Seed synthetic development contacts and permissions"
+run = "uv run --locked python manage.py seed_demo"
+
+[tasks.dev]
+description = "Run the development server on loopback"
+alias = "run"
+run = "uv run --locked python manage.py runserver 127.0.0.1:8000"
+
+[tasks.lint]
+description = "Check Ruff lint and formatting"
+run = [
+    "uv run --locked ruff check .",
+    "uv run --locked ruff format --check .",
+]
+
+[tasks.format]
+description = "Apply Ruff fixes and formatting"
+run = [
+    "uv run --locked ruff check --fix .",
+    "uv run --locked ruff format .",
+]
+
+[tasks.typecheck]
+description = "Run whole-project mypy checks"
+run = "uv run --locked mypy"
+
+[tasks.workflow-lint]
+description = "Validate GitHub Actions workflows"
+run = "actionlint"
+
+[tasks.hooks-install]
+description = "Install prek pre-commit and pre-push Git hooks"
+run = "prek install"
+
+[tasks.hooks]
+description = "Run commit-stage hooks on tracked and untracked files"
+shell = "bash -o pipefail -c"
+# NUL delimiters preserve filenames containing spaces; no staging is required.
+run = "git ls-files --cached --others --exclude-standard -z | xargs -0 prek run --stage pre-commit --show-diff-on-failure --files"
+
+[tasks.hooks-push]
+description = "Run push-stage hooks, including fast Django tests"
+shell = "bash -o pipefail -c"
+run = "git ls-files --cached --others --exclude-standard -z | xargs -0 prek run --stage pre-push --show-diff-on-failure --files"
+
+[tasks.check]
+description = "Check lint, typing, workflows, Django settings, and migrations"
+depends = ["lint", "typecheck", "workflow-lint"]
+run = [
+    "uv run --locked python manage.py check",
+    "uv run --locked python manage.py makemigrations --check --dry-run",
+]
+
+[tasks.test]
+description = "Run fast Django tests with coverage"
+run = "uv run --locked pytest --cov --cov-report=term-missing --cov-report=xml"
+
+[tasks.browser-install]
+description = "Install Playwright Chromium"
+run = "uv run --locked playwright install chromium"
+
+[tasks.browser]
+description = "Run Chromium browser tests"
+run = "uv run --locked pytest -m browser"

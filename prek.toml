@@ -1,0 +1,112 @@
+# Run `mise install`, `mise run install`, then `mise run hooks-install`.
+# Builtins need no remote hook repositories; Python tools come from uv.lock.
+minimum_prek_version = "0.4.8"
+default_install_hook_types = ["pre-commit", "pre-push"]
+default_stages = ["pre-commit", "pre-push", "manual"]
+
+# Installed third-party workflows retain their upstream formatting/policies.
+# Planning artifacts in _bmad-output/ are project content and ARE checked.
+exclude = '^(\.agents/|\.claude/|_bmad/|\.github/agents/|\.data/|\.venv/|build/|dist/|htmlcov/|playwright-report/|test-results/|screenshots/)'
+
+[[repos]]
+repo = "builtin"
+hooks = [
+    { id = "check-yaml" },
+    { id = "check-toml" },
+    { id = "check-json" },
+    { id = "check-xml" },
+    { id = "check-merge-conflict" },
+    { id = "check-case-conflict" },
+    { id = "check-illegal-windows-names" },
+    { id = "check-symlinks" },
+    { id = "destroyed-symlinks" },
+    { id = "check-executables-have-shebangs" },
+    { id = "check-shebang-scripts-are-executable" },
+    { id = "detect-private-key" },
+    { id = "check-added-large-files", args = ["--maxkb=500", "--enforce-all"] },
+    { id = "fix-byte-order-marker" },
+    { id = "mixed-line-ending", args = ["--fix=lf"] },
+    { id = "trailing-whitespace", args = ["--markdown-linebreak-ext=md"] },
+    { id = "end-of-file-fixer" },
+]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "prek-config"
+name = "Validate prek configuration"
+entry = "prek validate-config prek.toml"
+language = "system"
+files = '^prek\.toml$'
+pass_filenames = false
+
+[[repos.hooks]]
+id = "actionlint"
+name = "Validate GitHub Actions workflows"
+entry = "actionlint"
+language = "system"
+files = '^\.github/workflows/.*\.ya?ml$'
+
+[[repos.hooks]]
+id = "uv-lock"
+name = "Check dependency lock freshness"
+entry = "uv lock --check"
+language = "system"
+files = '^(pyproject\.toml|uv\.lock)$'
+pass_filenames = false
+
+[[repos.hooks]]
+id = "django-upgrade"
+name = "Check Django 5.2 APIs"
+entry = "uv run --locked django-upgrade --target-version 5.2 --check"
+language = "system"
+types = ["python"]
+exclude = '(^|/)migrations/'
+
+[[repos.hooks]]
+id = "ruff"
+name = "Ruff lint"
+entry = "uv run --locked ruff check --force-exclude"
+language = "system"
+types_or = ["python", "pyi"]
+
+[[repos.hooks]]
+id = "ruff-format"
+name = "Ruff format"
+entry = "uv run --locked ruff format --check --force-exclude"
+language = "system"
+types_or = ["python", "pyi"]
+
+[[repos.hooks]]
+id = "mypy"
+name = "Mypy (whole project)"
+entry = "uv run --locked mypy"
+language = "system"
+files = '(^((src|devsite|tests)/.*\.py|manage\.py)$|^(pyproject\.toml|uv\.lock|prek\.toml|mise\.toml)$)'
+pass_filenames = false
+
+[[repos.hooks]]
+id = "django-check"
+name = "Django system checks"
+entry = "uv run --locked python manage.py check"
+language = "system"
+files = '(^((src|devsite|tests)/.*\.py|manage\.py)$|^(pyproject\.toml|uv\.lock|prek\.toml|mise\.toml)$)'
+pass_filenames = false
+
+[[repos.hooks]]
+id = "django-migrations"
+name = "Check for missing migrations"
+entry = "uv run --locked python manage.py makemigrations --check --dry-run"
+language = "system"
+files = '(^((src|devsite)/.*\.py|manage\.py)$|^(pyproject\.toml|uv\.lock|prek\.toml|mise\.toml)$)'
+pass_filenames = false
+
+[[repos.hooks]]
+id = "pytest"
+name = "Fast Django tests (before push)"
+entry = "uv run --locked pytest"
+language = "system"
+files = '(^((src|devsite|tests)/.*\.py|manage\.py)$|^(pyproject\.toml|uv\.lock|prek\.toml|mise\.toml)$)'
+pass_filenames = false
+stages = ["pre-push", "manual"]
