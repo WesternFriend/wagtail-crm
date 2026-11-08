@@ -92,7 +92,7 @@ def test_contacts_may_share_an_email_address():
     assert Contact.objects.count() == 2
 
 
-def test_staff_form_has_one_plain_name_and_multiline_address(client, contact_editor):
+def test_staff_form_has_one_name_editor_and_multiline_address(client, contact_editor):
     client.force_login(contact_editor)
     response = client.get(reverse("wagtail_crm_contacts:add"))
     form = response.context["form"]
@@ -103,9 +103,9 @@ def test_staff_form_has_one_plain_name_and_multiline_address(client, contact_edi
         "postal_address",
     ]
     assert form["name"].value() == ""
-    assert form.fields["name"].widget.input_type == "text"
+    assert form.fields["name"].widget.__class__.__name__ == "ContactNameWidget"
     assert form.fields["postal_address"].widget.__class__.__name__ == "Textarea"
-    assert "separator" not in response.content.decode()
+    assert "Enter name parts" in response.content.decode()
 
 
 def test_create_edit_inspect_and_delete_retain_private_history(client, contact_editor):
@@ -323,7 +323,7 @@ def test_form_respects_explicit_initial_name_and_unsaved_structure():
             "defaultSeparator": " ",
         }
     )
-    assert ContactForm(instance=contact)["name"].value() == "Alex"
+    assert ContactForm(instance=contact)["name"].value() == contact.name
     assert (
         ContactForm(instance=contact, initial={"name": "Initial"})["name"].value()
         == "Initial"

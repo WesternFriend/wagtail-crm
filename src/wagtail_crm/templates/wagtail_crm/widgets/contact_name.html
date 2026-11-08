@@ -1,0 +1,29 @@
+<div data-contact-name data-field-id="{{ widget.attrs.id }}" id="{{ widget.attrs.id }}{% if widget.editor.mode != 'structured' %}_editor{% endif %}" tabindex="-1"{% include 'wagtail_crm/widgets/contact_name_attrs.html' %}>
+  {{ widget.editor|json_script:widget.initial_id }}
+  <input type="hidden" name="{{ widget.name }}_payload" data-name-payload{% if widget.attrs.disabled %} disabled{% endif %}>
+  <noscript><p>This name editor requires JavaScript. Enable JavaScript before editing or saving names.</p></noscript>
+  <label for="{{ widget.attrs.id }}_mode" data-mode-label>Name entry</label>
+  <select id="{{ widget.attrs.id }}_mode" name="{{ widget.name }}_mode" data-name-mode{% include 'wagtail_crm/widgets/contact_name_attrs.html' %}>
+    <option value="supplied"{% if widget.editor.mode == 'supplied' %} selected{% endif %}>Use a full name</option>
+    <option value="structured"{% if widget.editor.mode == 'structured' %} selected{% endif %}>Enter name parts</option>
+  </select>
+  <button type="button" class="button button-small button-secondary" data-toggle-name hidden{% if widget.attrs.disabled %} disabled{% endif %}>Enter name parts</button>
+  <div data-supplied>
+    <textarea rows="1" name="{{ widget.name }}" id="{{ widget.attrs.id }}{% if widget.editor.mode == 'structured' %}_full{% endif %}" data-full-name{% include 'wagtail_crm/widgets/contact_name_attrs.html' %}>{{ widget.editor.full }}</textarea>
+  </div>
+  <div data-structured>
+    <p>Enter confirmed parts in display order. Multiword values stay together. Use separator parts for punctuation between names.</p>
+    <label for="{{ widget.attrs.id }}_separator">Join parts with</label>
+    <textarea rows="1" id="{{ widget.attrs.id }}_separator" name="{{ widget.name }}_separator" data-name-separator{% include 'wagtail_crm/widgets/contact_name_attrs.html' %}>{{ widget.editor.separator }}</textarea>
+    <p>Leave empty to join without spaces; enter a space to separate names with spaces.</p>
+    <div data-name-parts>
+      {% for kind, value in widget.parts %}
+        {% include 'wagtail_crm/widgets/contact_name_part.html' %}
+      {% endfor %}
+    </div>
+    <template data-part-template>{% include 'wagtail_crm/widgets/contact_name_part.html' with kind='given' value='' %}</template>
+    <button type="button" class="button button-small button-secondary" data-add-part>Add name part</button>
+    <label>Generated full name <textarea rows="1" readonly data-name-preview></textarea></label>
+    <p data-name-preview-error role="status"></p>
+  </div>
+</div>

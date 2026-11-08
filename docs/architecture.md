@@ -91,6 +91,8 @@ Store timezone-aware timestamps, normalize instants to UTC, and display them in 
 
 ## Wagtail interface and artifacts
 
+Wagtail CMS is the only application UI. The site root redirects to the Wagtail login page. Additional features should use Wagtail's admin extension points wherever possible; no separate public frontend or parallel Django UI is planned.
+
 Use ordinary Django models exposed through Wagtail `ModelViewSet` and custom review/import/issuance views. Permissions apply to the underlying endpoints and services, including direct document downloads and exports. Record state transitions explicitly; saving a model should not silently send letters or issue financial documents.
 
 Editors may change controlled letter content, such as introduction and closing text. Financial lines, conditional disclosures, and calculations come from reviewed records and versioned application logic. Do not offer arbitrary executable template editing.

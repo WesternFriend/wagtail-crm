@@ -1,5 +1,7 @@
 # Development and testing
 
+Wagtail is the only application UI. The site root redirects to Wagtail's login page. Build staff features with Wagtail forms, model viewsets and custom admin views where possible; templates and static assets for contact-name controls extend those admin forms, rather than creating a separate frontend.
+
 The local host lets developers run the reusable CRM app inside real Django and Wagtail before building the payment workflow. It uses Django 5.2 LTS and Wagtail 7.4 LTS with dependencies pinned in `uv.lock`. Supported Python versions are declared in `pyproject.toml`; local development and CI use the Python version in `mise.toml`, currently 3.14.
 
 Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs lint, typing, and workflow validation prerequisites before Django checks; browser installation and testing remain explicit. `mise run dev` (alias `mise run run`) starts the loopback development server. Task commands execute from the project root.
@@ -16,7 +18,7 @@ Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs
 | `mise.toml` | Tool versions and shared setup, quality, test, and development tasks |
 | `.github/workflows/checks.yml` | Code quality, Django coverage, and Chromium CI jobs |
 
-Contacts have an independent stable identifier, a person/organization type, one name, one optional email, and one optional multiline postal address. Staff type a name normally; no name modes, separator controls or raw JSON are exposed. Internally, the bounded JSContact profile can preserve confirmed name components and render their full name. An unchanged name retains that structure; a newly supplied name retains previous structure in private change history. Structured postal address editing is deferred.
+Contacts have an independent stable identifier, a person/organization type, one name, one optional email, and one optional multiline postal address. Staff enter a supplied full name without parsing, or choose “Enter name parts” to edit confirmed given names and surnames in display order. Parts may repeat or contain multiple words; keyboard-operable buttons add, remove and reorder them. Structured editing shows a read-only generated name, supports space-free joins and preserves explicit separators. “Use a full name” returns to supplied text, retaining prior structure in private change history. No raw JSON is exposed. Unrelated correspondence edits preserve exact supported name formatting. Structured postal address editing is deferred.
 
 The inspect screen shows change history to users with contact-view permission. Supported create/edit/delete operations record private snapshots atomically, and history survives contact deletion. Existing Contacts migrate with their original PKs, exact names, kinds and email values; no name components, correspondence verification or donor attribution are inferred. Contacts remain independent of login accounts, and shared emails do not merge them. Financial models, provider imports, broad conversion tools and email sending remain unimplemented.
 
