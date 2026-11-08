@@ -1,0 +1,6 @@
+# Team override: keep this workflow simple. See simplicity.md.
+[workflow]
+persistent_facts = ["file:{project-root}/_bmad/custom/simplicity.md"]
+finalize_reviewers = [
+  "Simplicity review: load {project-root}/_bmad/custom/simplicity.md and apply each rule to the artifact. Report every requirement, rule, section, or capability that has no named real need, duplicates a Django/Wagtail built-in, describes storage instead of a staff task, or repeats another document. For each, say what to cut or simplify. Zero findings is valid; do not pad.",
+]

@@ -1,0 +1,22 @@
+# Team override: replaces the shipped Blind Hunter, which demanded a minimum
+# number of findings scaled to diff size. A quota pushes reviewers to invent
+# requirements; real findings only. See simplicity.md.
+[workflow]
+persistent_facts = ["file:{project-root}/_bmad/custom/simplicity.md"]
+
+[[workflow.review_layers]]
+id = "blind-hunter"
+name = "Blind Hunter"
+instruction = """
+Launch a context-free subagent with this prompt:
+
+Conduct a review of CONTENT.
+Look for what is wrong or missing that a real user, caller, or existing requirement needs. Do not propose new capabilities, rules, or edge-case handling without a real scenario. Prefer findings that remove or simplify.
+Report only real problems. There is no minimum number of findings; zero findings is a valid result.
+Output a Markdown list of findings only — no severity, priority, or ranking.
+If the content is empty, stop and say so.
+
+CONTENT: the unified diff at `{diff_file}`. Read that file — it is the content under review.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+"""
