@@ -47,6 +47,7 @@ These responsibilities require confirmation. Account administration, updates, ba
 - **FR-02:** Bring in correspondence and subscription context through documented exports and targeted correction. Retain confirmed information across transactions and letters. Bulk contact import depends on observed volume. Routine operation must not require developer queries or widespread re-entry.
 - **FR-03:** Track confirmed coverage by source, account, and date range separately from reconciliation. Permit review and drafts while coverage is incomplete. Final donor issuance requires confirmed relevant coverage; unknown mailed gifts may prevent that confirmation. A limited acknowledgment requires explicit scope and wording approval.
 - **FR-04:** If mailed gifts are covered, capture them through an adequate CSV import or controlled entry after inspecting bookkeeping records. Retain donor, amount/currency, policy-relevant date, method, stable source reference, confirmation, allocation context, and entry/review actors. Preserve private evidence references and duplicate warnings. Use the same downstream workflow as processor records.
+- **FR-20:** Account for rejected or unsupported rows without silent omission: retain an authorized source/row reference, reason, and resolution state. Show whether an import was staged, applied, failed, or remains uncertain after interruption. Retrying must not duplicate financial effects or overwrite reviewed decisions. Exact application boundaries and duplicate identity rules require documented adapter evidence and acceptance cases before implementation is accepted.
 
 ### Donor and financial review
 
@@ -58,9 +59,11 @@ These responsibilities require confirmation. Account administration, updates, ba
 
 ### Approval, issuance, and distribution
 
+- **FR-21:** Provide an explicit reconciliation review for an identified dataset version and scope. Compare source counts and monetary totals with authoritative comparison records, distinguishing gross, fees, net, refunds, reviewed charitable amounts, noncharitable amounts, and currencies rather than treating them as interchangeable totals. Explain every record disposition and difference with evidence. Record reviewer, time, scope, comparison references, and unresolved differences. Acceptance requires zero unexplained differences; any explained difference still needs authorized treatment. Reconciliation does not establish source completeness. Material changes reopen affected reconciliation and dependent approvals. The exact comparison procedure and authority remain stakeholder decisions.
 - **FR-10:** Preview the exact letter with correspondence details, period, itemized contributions, benefits, total, and signatory. Provide private evidence explaining coverage, payments, allocations, and refunds.
 - **FR-11:** Summarize coverage, reconciliation, ready/blocked donors, exclusions/reasons, missing delivery details, and the exact proposed batch. Support individual exception review and explicit version-bound batch approval of routine ready letters. Record actor, time, scope, and versions. Content changes reopen letter approval; financial changes reopen affected financial approval.
 - **FR-12:** Preserve issued letters and distribution history. Content corrections create linked, newly approved revisions. Corrective dispatch is explicit; retrying an unchanged letter creates another attempt.
+- **FR-22:** Issuance must identify the approved document versions and its outcome. Repeated or interrupted requests must not silently create duplicate issuance or dispatch. Staff can determine which letters were issued and safely resolve pending/failed outcomes. Define the issuance event, recovery behavior, and handling of superseded versions awaiting dispatch before accepting the issuance increment; detailed proposals and open decisions are in `acceptance-criteria.md`.
 - **FR-13:** Initially propose printable PDFs and a manifest for external delivery. Dispatch records identify version, channel, destination, date, actor, and available evidence reference. A staff attestation is not proof of receipt. Generation/download never records dispatch.
 - **FR-14:** Keep failed delivery and missing destinations visible. Distinguish fully distributed from closed with accepted distribution exceptions. Follow-up and closure authority require agreement. Distribution exceptions cannot bypass coverage, attribution, or financial gates.
 
@@ -68,7 +71,7 @@ These responsibilities require confirmation. Account administration, updates, ba
 
 - **FR-15:** Grant explicit CRM permissions independently of website accounts, with separate sensitive capabilities for exports, issuance, and account management. Protect evidence, letters, exports, and backups. Trust privileged infrastructure operators explicitly.
 - **FR-16:** Export the complete retained organizational record: contacts/identities, payments/refunds/allocations, evidence/references, policies/reviews, letters/revisions, approvals/audit, and distribution attempts. Preserve relationships, stable IDs, currencies, and dates in documented CSV or JSON plus PDFs/evidence and a manifest. History must be understandable without running the CRM. Exclude active credentials and session secrets.
-- **FR-17:** Guide routine work with a short workflow, everyday labels, useful next actions, explained calculations and blocks, preserved entered work, and low-effort confirmations. Keep evidence/history accessible. Explain when to involve finance. Validate by observing the Editor.
+- **FR-17:** Guide routine work with a short workflow, everyday labels, useful next actions, explained calculations and blocks, preserved entered work, and low-effort confirmations. Keep evidence/history accessible. Explain when to involve finance. Validate through the Editor's asynchronous task evidence, supplemented by live observation when practical.
 
 ## Readiness and success evidence
 
@@ -82,6 +85,8 @@ These responsibilities require confirmation. Account administration, updates, ba
 - Supported pilot has onboarding, written guidance, named help contact and availability, and named operational owners.
 
 Measure current effort before setting a time-saving target. Guardrails include wrong attribution or amounts, silent omissions, duplicate letters, disclosure, and repeated manual re-entry. Coverage and correctness must not be traded for speed.
+
+See `acceptance-criteria.md` for draft gate dependencies, invalidation rules, concrete synthetic examples, evidence requirements, and decisions needed before each capability can be accepted. These refine acceptance precision without approving financial policy or named authority. A Contacts screen, importer, or PDF generator alone is a development increment, not completion of this operational release.
 
 ## Deferred scope
 

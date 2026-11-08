@@ -37,16 +37,21 @@ Monthly calls and live observation may supplement this evidence but are not prer
 
 The following are proposed test scenarios derived from the interview, not approved financial policy.
 
+Use `acceptance-criteria.md` as the detailed specification: it defines evidence fields, gate/change dependencies, explicit reconciliation checks, numeric fixture premises, import/issuance retry cases, prohibited outcomes and proposed reviewers. This table remains a scenario overview. Record separate UX and financial verdicts; none of these scenarios has yet been run.
+
 | Scenario | Evidence of acceptable behavior |
 | --- | --- |
 | Straightforward gift | Confirmed donor, approved allocation rule, separate fees, traceable contribution and letter |
 | Patron subscription | Applicable approved historical policy visible; missing policy blocks affected issuance |
 | Ambiguous payer or gift recipient | Suggestions do not silently confirm attribution; reviewer resolves or escalates |
 | Repeat/overlapping import | No duplicate financial effects; previous staff decisions retained |
+| Rejected rows and interrupted import | Explained dispositions and visible outcome; safe retry without duplicate effects or lost review decisions |
 | Mixed-payment refund or changed source facts | Conflict visible; appropriate review reopened; old evidence preserved |
 | Missing offline coverage | Review/drafts continue; incomplete coverage cannot masquerade as issuance readiness |
 | Unsupported currency or language need | Original evidence retained; exception and required decision visible; no invented conversion |
 | Batch approval and issuance | Preview and explicit scope/version approval correspond to immutable issued artifacts |
+| Explicit reconciliation and changed dataset | Independent comparison accounts for records and monetary categories; unexplained differences block acceptance; material change reopens dependent review |
+| Repeated/interrupted issuance | No silent duplicate issuance/dispatch; staff can identify outcome and safely recover |
 | Correction after issuance | Linked newly approved revision; prior letter and dispatch history unchanged |
 | Download, dispatch and retry | Download leaves pending; actual dispatch attestation and separate attempts recorded |
 | Missing address/unreachable donor | Follow-up remains visible; any accepted closure preserves undelivered status and other gates |

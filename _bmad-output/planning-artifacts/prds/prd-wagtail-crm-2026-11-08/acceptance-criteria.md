@@ -1,0 +1,87 @@
+# Minimum operational release — acceptance criteria
+
+Status: proposed refinement, 2026-11-08. Derived from the approved brief, interview and supplied acceptance review. Not stakeholder approval, verified behavior, or a claim that the current Contacts scaffold implements this workflow. Existing FR identifiers remain stable; FR-20–22 add import recovery, explicit reconciliation and issuance recovery.
+
+## Acceptance evidence contract
+
+Each executed scenario must record its ID, requirement, dataset/version, exact input records and policy versions, independently established expected amounts and states, prohibited outcomes, actual results, evidence references, executor, reviewer and date. Record verdict as not run, blocked, pass or fail, with reasons. A missing required policy or expected result is blocked, never pass. No scenarios below have been executed.
+
+Financial expected results must be established independently of the implementation and confirmed by the designated financial reviewer before financial acceptance. Synthetic fixtures can test arithmetic, state handling and UX, but do not approve real historical treatment. Restricted source evidence must remain outside public repository content and synthetic UX environments.
+
+Named reviewers and authority are unconfirmed. Role labels below are proposals; Brylie coordinates confirmation rather than assuming financial authority. Approval of product direction does not satisfy these gates.
+
+## Gate dependencies and change impact
+
+This table states proposed acceptance behavior. A reviewer must record affected donors/records/scope and rationale. An issue with unknown donor impact cannot be declared isolated merely to unblock other letters.
+
+| Issue or change | Work permitted | What remains blocked or must reopen | Evidence for resolution |
+| --- | --- | --- | --- |
+| Missing source/account/date coverage | Import, identity/financial review and draft preparation | Issuance for every donor whose coverage may be incomplete; full cycle completion. If impact cannot be bounded, all potentially affected donors remain blocked. | Confirmed scope, source coverage evidence and authorized coverage confirmation; explicit treatment of unknown mailed gifts |
+| Rejected/unresolved source row or uncertain import outcome | Inspect source and resolve exception | Dependent reconciliation/issuance until its effect or authorized exclusion is established; unknown impact cannot be silently scoped away | Row disposition, source reference, retry outcome and reviewed scope |
+| Unresolved donor or disputed payer/recipient | Investigate and review source facts | Attribution approval and affected letters; do not merge on name/email alone | Confirmed donor, reviewer, source links and discrepancy rationale or escalation result |
+| Missing historical policy, allocation or refund decision | Prepare evidence and drafts marked unready | Affected financial approval, reconciliation acceptance and issuance | Approved effective policy or authorized exception, expected amounts and reviewed result |
+| Material amount, refund, attribution, benefit or source-fact change | Investigate; retain prior history | Reopen affected financial review/reconciliation and dependent letter/batch approval; no stale approvals authorize issuance | Change impact, renewed reviews and exact approved versions |
+| Correspondence or letter-content change | Review updated draft | Reopen approval for changed letter; financial approval only if financial meaning changes | Updated preview/version and required approval; classify materiality under agreed rules |
+| Changed cycle scope or newly discovered source | Continue preparation | Reassess coverage and reconciliation for changed scope; dependent approvals cannot rely on obsolete scope | Updated scope version, impact assessment and confirmations |
+| Missing destination or failed delivery | Continue financial review | Dispatch via unavailable destination; full distribution. Issuance impact depends on approved letter/address requirements. | Validated destination or accepted documented delivery exception under confirmed policy |
+| Issued content requires correction | Preserve issued original; prepare linked revision | Corrected content cannot inherit stale approval; affected queued dispatch must be resolved under agreed supersession policy | Newly approved revision and explicit corrective dispatch decision |
+| Unknown account/privacy/recovery ownership or unverified security controls | Synthetic development within safe environment | Real-data operational readiness | Named accountable owners, verified access/privacy controls and successful recovery evidence |
+
+Letter readiness requires resolved relevant coverage/identity/finance gates, accepted relevant reconciliation, approved communication and exact version-bound approval by confirmed authorities. A ready subset may be issued only when scope and donor impact are explicitly confirmed; it does not complete the wider annual obligation. Delivery exceptions can permit closure only under agreed follow-up and authority; they never waive issuance gates.
+
+## Reconciliation acceptance
+
+The Editor and bookkeeper must agree the authoritative comparison records, period/date basis, supported source statuses, currency boundaries and count/amount groupings before financial acceptance. The application must make the following independently inspectable:
+
+1. The exact source/account/date scope and dataset version, with references to separately confirmed coverage.
+2. Counts and source references for applied, duplicate, rejected, excluded and unresolved records. Distinguish record kinds so refunds or source observations are not miscounted as new payments. Mutually exclusive dispositions must account for the input records under a documented rule.
+3. Comparable monetary totals, with currencies separated, gross/fees/net distinguished, and refunds identified. Do not compare contribution totals directly with net processor receipts or silently net unlike categories.
+4. Reviewed charitable and noncharitable amounts, unreviewed amounts and supported refund adjustments. Show the bridge from source values to reportable lines and reasoned exclusions; unreviewed is not zero.
+5. Each difference, its evidence, resolution or authorized treatment, and remaining issue. Zero unexplained differences is necessary; merely writing a note does not authorize an exclusion or waive coverage.
+6. Recorded financial acceptance with actor, time, scope/version and comparison references. Relevant changes make prior acceptance stale and visibly identify what needs review.
+
+The exact source-format totals and accounting relationships cannot be finalized before inspecting representative records. Do not invent a PayPal reconciliation formula or cross-year refund policy to fill this gap.
+
+## Proposed scenario specifications
+
+All amounts here are synthetic USD unless stated. Numerical allocations are fixture premises for arithmetic tests, not approved subscription valuations or refund rules. Reviewers must separately approve real policies and financial validation datasets. Every row inherits the acceptance evidence contract above.
+
+| ID and inputs | Expected outcome and prohibited result | Evidence and proposed reviewer |
+| --- | --- | --- |
+| AC-01: One donor, completed $100 gift, $3 fee, confirmed allocation $100 and complete coverage | Gross $100; fees $3; net $97 for this fixture; reviewed contribution $100. No reduction of contribution by fees. | Independent fixture calculation, review state, source/letter linkage; finance |
+| AC-02: Same donor, $100 gift, $90 patron payment explicitly reviewed as $45 charitable/$45 benefit, and $20 purchase reviewed as $0 charitable | Charitable total $145, noncharitable total $65, gross total $210 before fees/refunds. Purchase retained but contributes $0; benefit wording reflects approved fixture. | Exact policy fixture, line bridge, totals and preview; finance plus Editor for wording |
+| AC-03: $100 payment with allocation blank, then reviewed $0, then attempted $101 and negative $1 | Blank blocks affected issuance; reviewed zero is an explicit decision. Out-of-bounds writes fail without changing valid state across every supported write path. | Form/import/service/constraint checks as applicable, before/after records and readiness; finance validates expected states |
+| AC-04: $90 patron payment, absent or out-of-date approved historical policy | Review exception; no unapproved split or issuance. After appropriate policy confirmation, exact expected split must be specified independently before acceptance. | Missing-policy state and approved policy/version evidence; finance |
+| AC-05: Same name/shared email or payer distinct from gift recipient | Suggestion remains unconfirmed; attribution changes only through authorized review with required evidence. No silent merge or donor reassignment. | Candidate evidence, actor, rationale and escalation result; Editor, disputed authority TBD |
+| AC-06: Import records A/B, then same file, then overlapping B/C; interrupt and retry application | One financial effect per logical A/B/C; all observations/dispositions accounted for, prior review decisions retained. Outcome after interruption is explicit, with no hidden partial result or duplicate effects. Changed observations are not discarded as duplicates. | Stable identity examples, counts, before/after records, interruption points and retry outcomes; Brylie plus finance |
+| AC-07: Malformed amount, unsupported status and EUR 25 row | No fabricated USD value or silent omission. Preserve source/row reference, original values and explained disposition; affected readiness remains blocked until authorized treatment. | Validation report and reconciliation/coverage impact; finance |
+| AC-08: $90 mixed payment reviewed $45 charitable; linked $10 refund explicitly approved in fixture as $4 charitable/$6 noncharitable | Under fixture premise of same-period adjustment, remaining charitable $41, noncharitable $39, retained payment less refund $80. Without approved refund treatment, block affected issuance. Never infer this split for real refunds. | Independent refund premise/calculation, review and letter lines; finance |
+| AC-09: Missing mailed-gift source could affect any donor | Drafts/review continue; none of the potentially affected donors becomes ready on PayPal reconciliation alone. Narrowing requires evidence and explicit scope confirmation. | Coverage state, source confirmations, attempted issuance and explanation; Editor/bookkeeper |
+| AC-10: Known input dataset plus independent comparison; introduce a $1 discrepancy and then a material amount change after acceptance | $1 unexplained difference blocks affected reconciliation acceptance. Corrected comparison can be accepted with evidence; later relevant change reopens acceptance and dependent approvals. Coverage remains separately required. | Comparison records, difference report, actor/scope/version and invalidation history; finance |
+| AC-11: Approve exact two-letter batch, then change one letter's wording; separately change its contribution amount | Changed letter loses communication approval; amount change also reopens relevant financial review/reconciliation. Old batch approval cannot authorize changed versions. Any still-ready subset must be explicitly identified. | Before/after version references, readiness and blocked issuance attempts; Editor plus finance |
+| AC-12: Submit issuance twice for the same approved versions, interrupt before/after publication and retry | No duplicate logical issuance or implicit dispatch. Staff can identify issued/pending/failed outcome and safely recover. Issued PDF matches approved content; preserved artifacts do not silently change. | Failure-point tests, approved/issued version and artifact comparisons, issuance record; authorized issuer with Brylie |
+| AC-13: Issued/dispatched version V1, later corrected amount or donor content | Preserve V1 artifact and attempts; require linked approved V2. No automatic corrective send or silently changed queued document. Superseded pending-dispatch handling must be decided before this case passes. | Version/artifact history, financial reapproval where needed and dispatch records; finance/Editor |
+| AC-14: Download letter, attest external dispatch, record failed delivery and retry; separate donor lacks address | Download leaves pending. Each actual attempt preserves version/destination/channel/date/actor/evidence. Missing address does not erase finance progress. Only agreed authority/follow-up permits exception closure; undelivered status remains. | Attempt history, manifest, closure authorization and outstanding-work view; Editor/closure authority TBD |
+| AC-15: Anonymous user, website-only user, CRM viewer lacking export/issue rights; direct IDs and artifact URLs | Unauthorized reads reveal no protected data; prohibited mutations do not occur. Hiding navigation alone is insufficient. Authorized comparison succeeds. | Endpoint/storage authorization matrix, responses and unchanged records; Brylie, access owner confirms grants |
+| AC-16: Export donor with gift/refund, policy/reviews, V1/V2 and attempts; separately restore records and artifacts | Independent reader reconstructs history, values, relationships and versions without app; no active secrets in export. Restore reproduces required records and matching artifacts with reviewed recovery procedure. | Manifest, schema, independent reconstruction notes and restore results; maintainer plus Editor/finance |
+| AC-17: Editor repeats representative synthetic cycle after onboarding on confirmed Mac/browser | Correct routine outcomes with minimal prompting; Editor explains amounts, blocks, next steps and document states, escalates finance appropriately. Keyboard/zoom/non-color/error checks pass; log help and repetition. Unknown numeric assistance/time targets are not silently treated as met. | Short tasks, resulting records, brief feedback, assistance log and accessibility findings; Editor/Brylie |
+
+## Decisions required before accepting affected increments
+
+These are open items, not assigned authority. Brylie's next coordination action is to request stakeholder confirmation and replace role placeholders with named owners and evidence references.
+
+| Decision | Proposed decision role; next action | Revisit/acceptance condition |
+| --- | --- | --- |
+| Named business, coverage, dispute, finance, issue and closure authorities | Business owner with Editor/bookkeeper; confirm names and permission/approval boundaries | Before accepting authority-dependent operational gates |
+| Exact period, sources, accounts, date basis and offline coverage | Editor/bookkeeper; inspect exports and confirm scope | Before financial dataset and coverage acceptance |
+| Duplicate keys, rejected rows, interruption boundaries | Brylie plus source reviewer; inspect source semantics and specify retry/disposition examples | Before import acceptance |
+| Historical policies, zero/blank treatment, refunds and material-change classification | Finance with Editor; approve examples/effective versions and escalation boundaries | Before financial and approval-invalidation acceptance |
+| Reconciliation procedure and authoritative comparisons | Bookkeeper; supply records and independently expected totals | Before reconciliation acceptance |
+| Issuance event, partial batch readiness, superseded queued versions | Editor/authorized issuer with finance and Brylie; specify recovery and dispatch behavior | Before issuance/revision acceptance |
+| Letter/address/translation requirements and delivery-exception closure | Editor and confirmed business owner; agree wording, follow-up and authority | Before affected issuance/distribution/closure acceptance |
+| Browser/accessibility needs, baseline and repeat-task expectations | Editor/Brylie; establish async test setup and baseline evidence | Before pilot usability acceptance |
+| Access/retention, support, backup/recovery and portable schema | Business owner/maintainer plus Brylie; confirm owners, procedures and evidence | Before real-data readiness |
+
+## Development increments versus release completion
+
+Use these gates to bound later implementation increments. An increment can be accepted for its defined synthetic behavior while real policy remains unresolved, provided that limitation is explicit and real issuance stays unavailable. A passing component test, balanced PayPal dataset or generated PDF does not complete the operational cycle. Full release acceptance requires the agreed coverage, financial, communication, distribution, privacy, usability and continuity evidence in the PRD and validation plan.
