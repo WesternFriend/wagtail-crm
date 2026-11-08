@@ -18,6 +18,6 @@ def staff_user(django_user_model):
 @pytest.fixture
 def contact_editor(staff_user):
     staff_user.user_permissions.add(
-        *Permission.objects.filter(content_type__app_label="wagtail_crm")
+        *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts")
     )
     return staff_user

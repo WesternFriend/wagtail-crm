@@ -6,7 +6,7 @@ The goal of the first release is one completed, reconciled acknowledgment cycle 
 
 ## Development foundation
 
-The repository includes a runnable `devsite` host with SQLite and the separate reusable `wagtail_crm` app. It has a minimal person/organization Contact model, Wagtail model views, a synthetic seed command, permission and CSRF tests, and a real-browser smoke suite. See [Development and testing](development.md) for commands and the manual UI checklist.
+The repository includes a runnable `devsite` host with SQLite and the `wagtail_crm.contacts` domain app in one reusable distribution. It has a minimal person/organization Contact model, Wagtail model views, a synthetic seed command, permission and CSRF tests, and a real-browser smoke suite. See [Development and testing](development.md) for commands and the manual UI checklist.
 
 This foundation does not implement payment imports or reporting. Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
 
@@ -57,6 +57,9 @@ Verify the [security requirements](security.md) in the actual hosted environment
 Exit evidence: the approved deployment and tested controls can support the first operational run. A VPN or gateway does not replace application permissions or private storage.
 
 ## Later candidates
+
+- Concurrent contact-edit protection, only if staff collisions demonstrate a need; the alpha uses standard Wagtail last-save-wins behavior.
+- Contact import/export mappings designed against actual source data; no codec or JSContact storage profile is required now.
 
 - Additional payment processors or structured offline-gift imports driven by actual source coverage needs.
 - Read-only PayPal synchronization, followed by narrowly scoped website integration if useful.

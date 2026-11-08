@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from wagtail_crm.models import Contact
+from wagtail_crm.contacts.models import Contact
 
 pytestmark = pytest.mark.django_db
 
@@ -29,23 +29,11 @@ def test_demo_seed_is_disabled_outside_debug(settings):
     assert not Contact.objects.exists()
 
 
-def test_new_demo_people_have_recorded_parts_and_existing_names_are_not_rewritten(
-    settings,
-):
-    from wagtail_crm.forms import ContactForm
-    from wagtail_crm.services import save_contact
-
+def test_seed_does_not_overwrite_an_existing_unsplit_name(settings):
     settings.DEBUG = True
-    legacy = save_contact(
-        Contact(name={"full": "Alex Example"}, email="alex@example.invalid"),
-        origin="demo",
-    )
+    legacy = Contact.objects.create(name="Alex Example", email="alex@example.invalid")
     call_command("seed_demo", verbosity=0)
     legacy.refresh_from_db()
-    assert legacy.name == {"full": "Alex Example"}
-    assert legacy.history.count() == 1
-    jordan = Contact.objects.get(email="jordan@example.invalid")
-    form = ContactForm(instance=jordan)
-    assert form["given_name"].value() == "Jordan"
-    assert form["surname"].value() == "Sample"
-    assert "full_name" not in form.fields
+    assert legacy.name == "Alex Example"
+    assert not legacy.given_name
+    assert not legacy.family_name

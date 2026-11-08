@@ -1,82 +1,29 @@
----
-name: Initial contact profile
-type: architecture-spine
-purpose: build-substrate
-altitude: feature
-paradigm: Layered Django application
-scope: First contact-management increment only
-status: final
-created: 2026-11-08
-updated: 2026-11-08
-binds: [FR-15, FR-23, AC-18]
-sources: [../../prds/prd-wagtail-crm-2026-11-08/prd.md, ../../prds/prd-wagtail-crm-2026-11-08/acceptance-criteria.md]
-companions: [FIRST-CONTACT-PR.md]
----
+# Contact-management architecture
 
-# Initial contact profile
+Approved simplification: 2026-11-08. This supersedes the earlier JSON name profile and custom history/revision design, retained only in Git history and historical review notes.
 
-Accepted for the bounded implementation, with a simple Wagtail given-name/surname form. Richer existing name structure is preserved internally; elaborate name editing and structured postal editing are deferred.
+## AD-1 — One distribution, one Django app per domain
 
-## Design paradigm
+One project and distribution package, `wagtail_crm`, contains domain apps labelled `wagtail_crm_<domain>`. Contacts lives in `wagtail_crm.contacts`, label `wagtail_crm_contacts`. Future finance/imports/letters may depend on contacts; contacts imports no sibling domain. Keep Contact-specific behavior here. No shared core, generic audit app or import-linter configuration is needed before another domain exists.
 
-Keep ordinary Django models and the existing Wagtail `ModelViewSet`. Validated forms and shared contact-write operations use the same profile rules. Profile conversion helpers have no payment-processor dependencies.
+## AD-2 — Ordinary contact columns and forms
 
-```mermaid
-flowchart LR
-    UI[Wagtail contact form] --> Write[Validated contact write]
-    Write --> Contact[Contact and change history]
-    Write --> Codec[Pure JSContact profile helpers]
-    Contact --> Codec
-```
+Contact has kind, given_name, family_name, name, optional email/postal_address, UUID uid and derived stored display_name. The display uses name when present, otherwise the given/family values. People use Given name/Family name; an existing unsplit name uses Name. Organizations use Name. Never infer a split. Wagtail forms handle validation and retain entered work. A small script only shows/disables applicable fields. No name modes, codecs, components, formatting controls or correspondence routing.
 
-## Invariants & rules
+## AD-3 — Use Wagtail history and permissions
 
-### AD-1 — One contact and one name workflow [ADOPTED]
+Use ModelViewSet and stock create/edit/delete/history actions and ModelLogEntry. Site history retains activity for deleted contacts. Do not add RevisionMixin, a parallel audit model, change-summary UI or custom snapshots. Standard Wagtail permission behavior applies. Concurrent-edit protection is deferred; last-save-wins is accepted for this alpha slice.
 
-- **Binds:** Contact forms, profile conversion, migration.
-- **Prevents:** Duplicate name maintenance, inferred identity and processor-dependent contacts.
-- **Rule:** One contact represents one person or organization. Staff edit its name once; known components generate the full representation, while unknown structure stays unstructured. Never parse names into confirmed components, merge on shared details, or infer transaction roles. Use ordinary Given name and Surname fields, neither individually required, with at least one value for new people. No component rows, join controls, naming modes or duplicate editable full name. Keep existing/imported full names without parsing them.
+## Initial schema and boundaries
 
-### AD-2 — Bounded JSContact profile
+There are no existing installations. One fresh `wagtail_crm.contacts` initial migration creates the final Contact schema. Development databases from the old app layout must be recreated/reseeded; no migration baseline or old-label preservation path is claimed. Existing local files are not deleted by tooling without an explicit reset action.
 
-- **Binds:** Model validation, forms, conversion helpers.
-- **Prevents:** Incompatible field meanings or accidental full-standard claims.
-- **Rule:** Use RFC 9553, Card version `1.0`, with the field mapping below. Staff never edit raw JSON. Conversion helpers are pure: decoding validates and returns data without writing contacts or inferring identity. Unsupported input fails explicitly before mutation. No bulk/source importer or conversion endpoint is introduced; this contact-only Card is not the complete organizational export in FR-16.
+Wagtail is the only UI; retain URL namespace wagtail_crm_contacts and crm/contacts prefix. Postal address remains multiline text. An Inspect extension is justified only for displaying its line breaks; all remaining views use the framework defaults.
 
-| Supported value | JSContact mapping | Initial limit |
-| --- | --- | --- |
-| Independent UUIDv4 | `uid` as `urn:uuid:…` | Keep existing database PKs and routes. |
-| Existing person/organization kind | `kind`: `individual` / `org` | Companies and nonprofits both map to `org`. |
-| One current name | `name.full`; optional `components`, `isOrdered`, `defaultSeparator` | Kinds `given`, `surname`, `surname2`, `separator`; repeated kinds allowed. Structured input requires explicit order/separators; generate `full`, rejecting a conflicting supplied full value. No inferred locale or transliteration. |
-| One optional correspondence email | `emails.correspondence.address` | Omit map when absent; no preference/context or attribution inferred. |
-| One optional postal address | `addresses.correspondence.full` | Multiline Unicode text. No separate country/state/postcode fields or address parser in this increment. |
-| Exchange envelope | `@type: Card`, `version: 1.0` | Ordinary contact export; exclude audit/source evidence from the Card. |
+## Future interoperability
 
-Profile validation: components must be nonempty and contain a nonseparator, with `isOrdered: true` and explicit `defaultSeparator` (including empty). An intervening `separator` replaces the default; reject adjacent/leading/trailing separator components and unsupported kinds. Only a complete valid save changes a name, preserving prior values/structure in history. The ordinary Wagtail form edits given name and surname for new people and known simple components; generate their full representation. New names use given then surname and an ordinary space when both are present. Explicitly known simple components may populate these fields; preserve the original name object on unchanged saves, including its existing ordering/formatting. Full-only names populate one editable Name field instead of given/surname fields. Direct edits store a full-only replacement; unchanged text preserves the exact original object. Empty applicable fields produce validation errors. Populated organization names follow the same rule. Use ordinary textareas only for stored multiline names, normalizing CR/LF/CRLF for comparison and retaining original storage when unchanged. No Current name instructions, preservation notes, mode controls or custom JSON transport. Never split supplied text. Richer name editing is deferred until demonstrated need. Use fixed map key `correspondence` in this profile; it is an application identifier, not standardized delivery intent. More entries/other keys are unsupported. Preserve invalid legacy email in storage; encoding it fails explicitly without modifying it.
+Design JSContact/vCard/Schema.org mappings and CLDR formatting only when an actual import/export workflow requires them. They are references, not a current codec or storage contract. Financial rules, source mappings, letters, delivery and production deployment remain later increments.
 
-Repeated recorded given/surname/surname2 components populate the ordinary Given name/Surname groups without parsing words. Unchanged saves retain exact structure and line endings. Edits replace only changed groups, preserving unrelated recorded groups, order and representable separators; history retains the original. A multiline group uses an ordinary textarea for its proper field. Only full-only people use Name; richer component controls remain deferred.
+## Frameworks
 
-[ASSUMPTION] Pin CLDR 49 / UTS #35 revision 79 as the formatting reference, but implement only explicit JSContact ordering/separators for these examples. This is a proposed limitation, not a claim of locale-aware CLDR formatting; locale-driven patterns wait for known needs. Blank email/address values do not invalidate contacts or establish delivery readiness. Future adapters must retain original observations and additional emails separately from correspondence and attribution.
-
-### AD-3 — Preserve records and history [ADOPTED]
-
-- **Binds:** Migration, writes, permissions, profile round-trip.
-- **Prevents:** Lost legacy data, untraceable edits and accidental access expansion.
-- **Rule:** Preserve PKs, kind, exact legacy name/email values; copy names to unstructured `name.full` and assign distinct UIDs. Infer no components, verification, preferences or attribution. Record migration baseline, create, update and delete snapshots: old/new values (absent before create/after delete), UID, actor/time/origin. Migration timestamps describe migration time, with no invented human reviewer. Shared write operations validate explicitly and atomically persist contact/history; forms, viewset mutation hooks and demo seeding must use them. Retain permission codenames, namespace and endpoint enforcement. History survives contact deletion; no cascading removal. Profile helpers introduce no new access capability.
-
-## Django/Wagtail seed
-
-`Contact` remains the owner: UUID UID, validated name `JSONField`, derived `display_name` text for list/search, existing email/kind, and multiline postal text. The Wagtail form exposes ordinary given-name/surname inputs for new people and people with recorded components, one populated Name for other existing people, and one populated organization-name input for organizations; it writes the canonical name internally. A minimal form script shows and enables only the relevant kind-specific fields. A rendered name is read-only/derived, not a second source of truth. `ContactHistory` stores private before/after snapshots, exposed through the existing Wagtail History route with changed-field summaries and collapsed complete snapshots. Inspect links there and omits the routine UUID; Wagtail’s own audit log records are retained. The model kind field uses the staff label Contact type; a hidden revision check rejects stale edits. Shared services use the database router, transactions and row locks where supported. This is not a general audit platform or validation of production database concurrency.
-
-| Existing framework | Locked version |
-| --- | --- |
-| Django | 6.1.3 |
-| Wagtail | 8.1 |
-
-## Mapping boundaries and deferred work
-
-Mapping notes only: `individual`/`org` → Schema.org Person/Organization; rendered name → `name`; email → `email`; postal text → `address` as text. Structured postal address editing, parsed PostalAddress and separate ContactPoint mappings are explicitly deferred. Future vCard 4.0 (RFC 6350) FN/N/KIND/EMAIL/ADR mappings follow RFC 9555/9554, with losses documented before converters. Additional components, source imports, provider identities, relationships, multiple details, routing, finances, letters and sending are deferred. Future issuance must snapshot names; this PR introduces no letter records. Deployment decisions remain outside this increment; retain the existing synthetic devsite and CI.
-
-## References
-
-[RFC 9553](https://www.rfc-editor.org/rfc/rfc9553.html), [RFC 9554](https://www.rfc-editor.org/rfc/rfc9554.html), [RFC 9555](https://www.rfc-editor.org/rfc/rfc9555.html), [CLDR 49](https://www.unicode.org/reports/tr35/tr35-79/tr35-personNames.html), [Django 6.1 migrations](https://docs.djangoproject.com/en/6.1/topics/migrations/), [Wagtail 8.1 generic views](https://docs.wagtail.org/en/v8.1/extending/generic_views.html).
+Django 6.1.3 and Wagtail 8.1, locked in uv.lock. See docs/development.md for verification. Framework-first simplicity and the staff-task acceptance criteria govern future additions.

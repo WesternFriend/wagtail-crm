@@ -1,63 +1,43 @@
 ---
 status: done
-baseline_commit: 99ab49df47629016ea1ab4149bd10fd57ed98990
+route: oneshot
+baseline_commit: dfc2f2a43bb11490779eeb2ea69d7f183a295c09
 context: []
 ---
 
-# Finish ordinary populated contact forms
+<frozen-after-approval>
 
-The user rejects the blank-name preservation process and requires usable contact management before any further feature work. Implement directly within the existing Wagtail layout; no new planning layer, naming modes, formatting controls or configuration.
+## Intent
 
-## Accepted behavior
+Implement Brylie's approved smaller contact slice: one distribution with a contacts Django app, ordinary given/family/unsplit/organization name columns, familiar Wagtail editing and standard Wagtail history/permissions. Delete JSON codecs, custom history/snapshots/services, revision locking and their tests. Add AGENTS.md/CLAUDE.md simplicity guardrails and the planning YAGNI gate. No existing installations require migration; use a fresh initial migration, retain old local database files untouched, and document recreation/reseeding. Family name is the label; no migration baseline. Approved six staff-task AC-18 criteria replace the earlier implementation-specific rules. Future standards mappings/concurrency remain deferred. Do not start imports, finance or letters.
 
-- New people have ordinary Given name and Surname fields, neither individually required, with at least one nonblank value. Reopen them populated from recorded components; generate the displayed name without duplicate entry.
-- Known structured names, including repeated given/surname/surname2 components, stay in the appropriate populated Given name/Surname fields. Staff edit grouped values naturally; do not split their typed text into components. Preserve exact original objects on unchanged saves and preserve unrelated components and representable ordering/separators on edits. If adding a previously absent name group, use the ordinary default given-before-surname order without moving or splitting existing recorded components.
-- Existing names with genuinely unknown structure use one ordinary populated editable Name field. No blank replacement fields, Current name note, hidden preservation semantics or inferred split. Direct edits retain the old data/history. Emptying the applicable name produces an ordinary error and retains other entered work.
-- Organizations use one populated Organization name field and no visible person-name fields. Existing multiline values use an ordinary textarea in the applicable field; normalize browser line endings for comparison, retaining exact unchanged source objects. No custom JSON transport.
-- Keep ordinary Contact type, inactive-field behavior, optional email/multiline postal data, Wagtail-only UI, stable IDs, history, permissions, CSRF and stale-edit guards. Keep canonical History and complete snapshots; remove a duplicate Inspect History link and empty optional creation-summary rows found during the actual UI walkthrough. Use Changed by rather than exposing the actor field name. Remove organization help that only repeats its label.
+</frozen-after-approval>
 
-## Scope and source map
+## Implementation Notes
 
-`forms.py` maps ordinary inputs to the existing validated JSContact name object; `views.py` and the minimal existing form script expose relevant fields through Wagtail. Templates retain the current layout. No migration, import, financial feature, direct sending, data cleanup by inferred splitting, or mutation of existing development records. Existing unknown names stay editable while component conversion awaits confirmed data. Standards remain internal; future address/data forms use familiar appropriate fields populated with known values, without expanding today's agreed multiline-address scope.
+- All six pending decisions were explicitly resolved by the user. Stock Wagtail actions already log atomically; no additional log-data or change-display layer is required by the user's framework-only clarification.
+- Keep this as one small domain implementation, replacing/deleting code rather than creating another planning layer. Verify check/hooks/test/browser, empty SQLite/PostgreSQL migration+seed, package contents and a personal running-UI walkthrough. Record line counts and update PR #2.
 
-Update source, endpoint/browser tests, requirements/acceptance and development notes. Remove obsolete blank-preservation assertions. Preserve all preceding Contact type/history refinements. No commit or push from the implementation agent.
+## Result and verification
 
-## Acceptance and verification
+- Replaced the former top-level app with `wagtail_crm.contacts`, label `wagtail_crm_contacts`, and one fresh initial migration. Kept UUIDs, ordinary name/contact columns, derived searchable names, existing contact URLs and native model permissions. No existing installations need an upgrade path; the original local SQLite file remained byte-for-byte unchanged.
+- Removed the JSON codec, services, custom history/snapshots/templates, revision counter, stale-edit/delete protection and tests of those removed features. History uses Wagtail actions/user/time, without custom before/after data. Concurrent-edit protection and import/export mappings are deferred. No migration-baseline entries.
+- Only two small framework extensions remain: Inspect preserves postal-address line breaks, and a menu hook exposes Wagtail's existing Site history report to CRM staff without page permissions. The report itself retains Wagtail permission filtering.
+- Added root AGENTS.md, a CLAUDE.md pointer, and the planning simplicity gate. Reconciled the six approved AC-18 tasks and supporting requirements with the implementation.
+- On Python 3.14: `mise run check` and `mise run hooks` passed; `mise run test` passed **30 tests**, **94% branch-aware coverage**; `mise run browser` passed **5 Chromium scenarios**. An independent PostgreSQL 15 fast run passed **30 tests**. Empty SQLite and PostgreSQL 15 migrations and synthetic seeding passed. The disposable PostgreSQL container was stopped afterward.
+- Built the wheel and verified its source bytes, new migration and namespaced JavaScript; development host, tests and retired modules/templates are excluded.
+- Personally walked the running UI in Brave on a Mac as a normal CRM Editor with no page permissions: login, single/non-Latin person name, blank optional details, invalid-email recovery, populated edit fields, search/Inspect, standard History, directly editable unsplit name, organization creation/edit/Inspect and Reports → Site history. A separate restricted account lacked Contacts navigation and was denied direct access. Automated Chromium additionally verified type changes, name-error recovery and deletion activity. This is synthetic developer evidence, not Editor acceptance or financial validation.
+- Physical Python/JavaScript/HTML lines, including migrations: `src/` **1,190 → 229**, `tests/` **2,800 → 648**, compared with pre-reduction head `dfc2f2a43bb11490779eeb2ea69d7f183a295c09`. The originally reviewed `d9f8a715edc2b6f6cd77b56d0ac4f6f7ccb84a01` had 1,143 and 2,604 respectively; these totals differ from the review's approximate added-line counts.
 
-Run `mise run check`, `mise run hooks`, `mise run test`, `mise run browser`, and wheel isolation/source matching. Verify new/single/multiword/Unicode names; populated unknown and structured representations; repeated components, exact line endings, direct edits, validation recovery, unchanged unrelated data/history, organization/type transitions, proper field visibility, permissions, canonical History and snapshots. No new schema or development-record writes.
+## Review Triage Log
 
-Before requesting user review, personally run the app and complete creation/finding/editing/Inspect in a real browser. The native Brave walkthrough used a separate temporary synthetic SQLite database and confirmed unknown Jordan Sample direct editing, blank-name/email error recovery without re-entry, new split multiword people, surname-only 王, organization creation/edit/search/Inspect, optional details, exact multiline preservation and known repeated components in normal fields. A normal CRM editor edited records; staff without CRM permission had no navigation and direct access was denied. Stored outcomes confirmed original names, stable IDs and unrelated family components were preserved. The walkthrough directly fixed duplicate History navigation and empty history rows. No existing development records were touched.
+One independent review; no additional review layers. All six actionable findings were patched:
 
-Keep imports and financial workflows paused. Finish and report usable contact management, running-UI evidence, exact checks and remaining limits; do not ask for another redesign review or add instructions around confusing controls.
+- Medium: obsolete AC-18 interoperability row still required unsupported mappings; removed it in favor of the approved staff tasks.
+- Medium: obsolete standards-profile approval blocker contradicted the reduced scope; removed it from current decisions.
+- Low: dangling FR23 reference left the acceptance introduction inconsistent; corrected the introduction.
+- Medium: current validation handoff still claimed removed components/custom snapshots and old test counts; replaced it with current evidence.
+- Medium: existing-contact type changes lacked a browser regression; added person → organization → unsplit person coverage.
+- Medium: Site history results/CSV privacy needed direct coverage; verified deleted-contact labels remain inaccessible without contact permissions using an independent authenticated client. An initial failure came from reusing the editor's flash-message cookie, not report leakage; the isolated client passes without an application workaround.
 
-## Review triage log
-
-Independent blind, edge-case and verification-gap reviews were completed. The edge-case reviewer returned no findings. All implementation findings below were resolved; no blocking findings remain.
-
-| ID | Finding | Decision and resolution |
-| --- | --- | --- |
-| B1 | Concurrent representation changes could hide submitted work | Patch: retain submitted field shape and values on a stale edit, block the write; regression tests. |
-| B2 | Adding a name group could inherit punctuation/empty/newline join | Patch: ordinary space at the new boundary; preserve existing internal formatting; regression cases. |
-| B3 | Switching contact type after editing could discard the draft | Patch: carry edited name to an untouched applicable destination while retaining independent drafts; browser case and personal walkthrough. |
-| B4 | Changed repeated surname/surname2 group lacked coverage | Patch: test both kinds, preserve unrelated given components and original snapshots. |
-| B5 | Interleaved groups lacked reconstruction coverage | Patch: test group replacement without orphan/adjacent separators. |
-| B6 | Clearing an entire repeated group lacked coverage | Patch: test valid remaining name and preserved history. |
-| B7 | Actual multiline edit and validation recovery lacked browser coverage | Patch: browser regression plus personal running-UI verification. |
-| B8 | Null character validation on full Name lacked coverage | Patch: verify normal field errors and no write. |
-| B9 | Repeated-name documentation appeared under unrelated sections | Patch: consolidate into the applicable name-profile sections. |
-| B10 | Completion plan needed final executed results and evidence link | Reject as a code finding: completion bookkeeping in the specification. Final results recorded below and linked to the existing validation plan. |
-| V1 | Repeated surname replacement test gap (same issue as B4) | Patch: covered by the B4 regression cases. |
-
-Final inspection additionally fixed moving a single recorded name between given and surname when the original group is cleared: no leading/trailing separator is introduced, and history retains the original. Two regression cases pass. Synthetic demo people now have explicitly authored given/surname values; existing seeded records are never rewritten or inferred.
-
-## Final verification
-
-- `mise run check`: passed Ruff, format, mypy (16 source files), actionlint, Django system checks and migration drift check; no migration changes.
-- `mise run hooks`: passed repository hooks, including all tracked and untracked eligible files.
-- `mise run test`: 168 passed, 10 browser tests deselected, 95% coverage.
-- `mise run browser`: 10 Chromium tests passed, 168 non-browser tests deselected; synthetic screenshots saved outside the repository.
-- `uv build --wheel`: passed; all 15 packaged source/template/static files match current sources byte for byte; migrations included, devsite/tests/scripts excluded.
-- `git diff --check`: passed.
-- Personal native Brave/Mac walkthrough and stored-outcome readback: [validation evidence](../../prds/prd-wagtail-crm-2026-11-08/validation-plan.md#development-handoff--running-contact-walkthrough). Includes create/find/edit/Inspect, optional details, single/unknown/repeated names, multiline errors, type-switch drafts, normal staff and denied users. Disposable session signed out and server stopped; existing database untouched.
-
-Remaining bounded limitations: no inferred splitting or component-conversion tool for unknown historical names; richer component controls and structured address editing are deferred. This finishes contact management within its current scope, not Editor acceptance or financial validation. Imports and financial workflows remain paused. No push or PR creation.
+Original review findings 1, 2, 6 and 7 no longer describe retained code: the JSON validation/codec, legacy backfill migrations and multiline name editor were deleted. Finding 8's custom Inspect template was also removed; native fields with a small line-break renderer provide the required result. Findings 3–5 are satisfied by stock CRUD views, one form field definition and Wagtail's own labeled history actions. The user's later approval explicitly supersedes earlier stale-delete protection and before/after-history proposals.

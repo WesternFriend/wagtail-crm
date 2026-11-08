@@ -6,7 +6,7 @@ Wagtail's staff interface is the application's only UI. The site root redirects 
 
 ## Status
 
-Contact-management foundation. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, ordinary given-name/surname fields, optional email and multiline postal editing, private change history, and permission-controlled views. Contact names and internal interchange helpers follow a bounded JSContact profile. The payment importer, financial controls, reporting dashboards, and letter generation are still planned. Production authentication hardening and deployment have not been completed.
+Alpha contact-management foundation; there are no existing installations. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, ordinary Given name/Family name fields, optional email and multiline postal editing, Wagtail activity history, and permission-controlled views. Existing unsplit names remain directly editable. The payment importer, financial controls, reporting dashboards, and letter generation are still planned. Production authentication hardening and deployment have not been completed.
 
 ## Run locally
 
@@ -32,6 +32,8 @@ mise run test
 mise run browser-install
 mise run browser
 ```
+
+Old alpha databases from the former app label must be recreated/reseeded; there is no cross-label migration path. Keep a backup or select a fresh database file.
 
 See [Development and testing](docs/development.md) for setup details, browser prerequisites, the optional PostgreSQL connection, and the manual UI checklist.
 
@@ -60,7 +62,7 @@ The target is one nonprofit per installation, a separate staff application, and 
 
 ## Development approach
 
-The reusable package lives in `src/wagtail_crm/`; `devsite/` is a separate local host and is excluded from the package wheel. The current framework pair is Django 6.1.3 and Wagtail 8.1, with exact dependency versions in `uv.lock`. We track current stable compatible releases; upgrades are verified with the same local and CI checks. Processor normalization, financial decisions, and document generation will remain distinct modules within one application.
+One distribution contains one Django app per domain. Install the contacts app as `wagtail_crm.contacts` (label `wagtail_crm_contacts`); the package lives in `src/wagtail_crm/`; `devsite/` is a separate local host and is excluded from the package wheel. The current framework pair is Django 6.1.3 and Wagtail 8.1, with exact dependency versions in `uv.lock`. We track current stable compatible releases; upgrades are verified with the same local and CI checks. Processor normalization, financial decisions, and document generation will remain distinct modules within one application.
 
 The CRM will have its own database credentials, application secrets, sessions, and private file storage. It will initially exchange data through reviewed imports. Public website accounts and access to its content editor will not automatically grant CRM access.
 

@@ -10,12 +10,13 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.urls import resolve, reverse
 from playwright.sync_api import expect, sync_playwright
 
-from wagtail_crm.models import Contact
-from wagtail_crm.services import save_contact
+from wagtail_crm.contacts.models import Contact
 
 
 @pytest.mark.browser
 class TestContactBrowser(StaticLiveServerTestCase):
+    serialized_rollback = True
+
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username="ui-reviewer", password="synthetic-browser-password", is_staff=True
@@ -53,237 +54,66 @@ class TestContactBrowser(StaticLiveServerTestCase):
 
     def allow_contacts(self):
         self.user.user_permissions.add(
-            *Permission.objects.filter(content_type__app_label="wagtail_crm")
+            *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts")
         )
 
-    def test_editor_can_add_and_edit_person_on_one_ordinary_form(self):
+    def test_person_creation_editing_validation_search_inspect_and_history(self):
         self.allow_contacts()
         with self.browser_page():
             self.login()
             self.page.get_by_role("link", name="Contacts", exact=True).click()
             self.page.get_by_role("link", name="Add contact", exact=True).click()
-            given = self.page.get_by_label("Given name", exact=True)
-            surname = self.page.get_by_label("Surname", exact=True)
-            expect(given).to_be_visible()
-            expect(surname).to_be_visible()
-            assert given.get_attribute("required") is None
-            assert surname.get_attribute("required") is None
-            expect(self.page.locator('label[for="id_given_name"]')).not_to_contain_text(
-                "*"
-            )
-            expect(self.page.locator('label[for="id_surname"]')).not_to_contain_text(
-                "*"
-            )
-            expect(
-                self.page.get_by_label("Organization name", exact=True)
-            ).to_be_hidden()
-            expect(
-                self.page.get_by_text("Organization name", exact=True)
-            ).to_be_hidden()
-            expect(
-                self.page.locator("[data-contact-name], [data-name-part]")
-            ).to_have_count(0)
-            expect(self.page.get_by_text("Join parts with", exact=True)).to_have_count(
-                0
-            )
-            given.fill("Mary Beth")
-            surname.fill("van Berg")
+            self.page.get_by_label("Given name", exact=True).fill("María del Carmen")
+            self.page.get_by_label("Family name", exact=True).fill("García López")
             self.page.get_by_label("Postal address").fill(
                 "Example Street\nHelsinki\nFinland"
             )
-            self.page.get_by_label("Email").fill("invalid@local")
+            self.page.get_by_label("Email", exact=True).fill("invalid@local")
             self.page.get_by_role("button", name="Create", exact=True).click()
             expect(
                 self.page.get_by_text("Enter a valid email address.")
             ).to_be_visible()
-            expect(given).to_have_value("Mary Beth")
-            expect(surname).to_have_value("van Berg")
-            self.page.get_by_label("Email").fill("synthetic@example.invalid")
-            self.page.get_by_role("button", name="Create", exact=True).click()
-            self.page.get_by_role("link", name="Mary Beth van Berg", exact=True).click()
-            expect(given).to_have_value("Mary Beth")
-            expect(surname).to_have_value("van Berg")
-            given.fill("Mary Jane")
+            expect(self.page.get_by_label("Given name", exact=True)).to_have_value(
+                "María del Carmen"
+            )
+            expect(self.page.get_by_label("Postal address")).to_have_value(
+                "Example Street\nHelsinki\nFinland"
+            )
+            self.page.get_by_label("Email", exact=True).fill("")
             if directory := os.environ.get("CRM_SCREENSHOTS_DIR"):
                 path = Path(directory)
                 path.mkdir(parents=True, exist_ok=True)
                 self.page.screenshot(path=str(path / "person-form.png"), full_page=True)
-            self.page.get_by_role("button", name="Save", exact=True).click()
-            edit_link = self.page.get_by_role(
-                "link", name="Mary Jane van Berg", exact=True
+            self.page.get_by_role("button", name="Create", exact=True).click()
+            self.page.get_by_role(
+                "link", name="María del Carmen García López", exact=True
+            ).click()
+            expect(self.page.get_by_label("Family name", exact=True)).to_have_value(
+                "García López"
             )
-            pk = resolve(urlsplit(edit_link.get_attribute("href")).path).kwargs["pk"]
+            self.page.get_by_label("Given name", exact=True).fill("")
+            self.page.get_by_label("Family name", exact=True).fill("王")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            self.page.get_by_placeholder("Search…", exact=True).fill("王")
+            self.page.get_by_placeholder("Search…", exact=True).press("Enter")
+            link = self.page.get_by_role("link", name="王", exact=True)
+            expect(link).to_be_visible()
+            pk = resolve(urlsplit(link.get_attribute("href")).path).kwargs["pk"]
             self.page.goto(
                 f"{self.live_server_url}{reverse('wagtail_crm_contacts:inspect', args=[pk])}"
             )
-            inspect_html = self.page.content()
             expect(self.page.locator("main")).to_contain_text("Finland")
-            expect(self.page.get_by_text("Contact type", exact=True)).to_be_visible()
-            history_url = reverse("wagtail_crm_contacts:history", args=[pk])
-            history_link = self.page.get_by_role("link", name="History", exact=True)
-            expect(history_link.first).to_have_attribute("href", history_url)
-            history_link.first.click()
-            expect(self.page).to_have_url(f"{self.live_server_url}{history_url}")
-            table = self.page.get_by_role("table").filter(
-                has=self.page.get_by_role("columnheader", name="Changes", exact=True)
-            )
-            rows = table.locator("tbody > tr")
-            if directory := os.environ.get("CRM_SCREENSHOTS_DIR"):
-                self.page.screenshot(
-                    path=str(Path(directory) / "history.png"), full_page=True
-                )
-            expect(rows).to_have_count(2)
-            expect(self.page.locator(".pagination__end")).to_contain_text(
-                "2 contact changes"
-            )
-            changes = rows.first.locator("dl")
-            expect(changes).to_contain_text("Name")
-            expect(changes).to_contain_text("Mary Beth van Berg")
-            expect(changes).to_contain_text("Mary Jane van Berg")
-            expect(changes).not_to_contain_text("Email")
-            expect(changes).not_to_contain_text("Postal address")
-            snapshots = rows.first.locator("details")
-            assert snapshots.get_attribute("open") is None
-            snapshots.locator("summary").click()
-            expect(snapshots.locator("pre").first).to_be_visible()
-            expect(snapshots).to_contain_text("postal_address")
             self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[pk])}"
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:history', args=[pk])}"
             )
-            edit_history = self.page.get_by_role("link", name="History", exact=True)
-            expect(edit_history.first).to_have_attribute("href", history_url)
-            edit_history.first.click()
-            expect(self.page).to_have_url(f"{self.live_server_url}{history_url}")
-        contact = Contact.objects.get()
-        assert contact.display_name == "Mary Jane van Berg"
-        assert str(contact.uid) not in inspect_html
-        assert contact.history.count() == 2
-        assert contact.history.first().before["display_name"] == "Mary Beth van Berg"
-
-    def test_single_names_and_combined_name_requirement(self):
-        self.allow_contacts()
-        with self.browser_page():
-            self.login()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:add')}"
-            )
-            self.page.get_by_label("Email").fill("retained@example.invalid")
-            self.page.get_by_label("Postal address").fill("Retained address")
-            self.page.get_by_role("button", name="Create", exact=True).click()
-            expect(self.page.locator(".error-message").first).to_be_visible()
-            expect(self.page.get_by_label("Email")).to_have_value(
-                "retained@example.invalid"
-            )
-            expect(self.page.get_by_label("Postal address")).to_have_value(
-                "Retained address"
-            )
-            self.page.get_by_label("Given name", exact=True).fill("Sukarno")
-            self.page.get_by_role("button", name="Create", exact=True).click()
             expect(
-                self.page.get_by_role("link", name="Sukarno", exact=True)
+                self.page.get_by_role("columnheader", name="Action", exact=True)
             ).to_be_visible()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:add')}"
-            )
-            self.page.get_by_label("Surname", exact=True).fill("王")
-            self.page.get_by_role("button", name="Create", exact=True).click()
-            expect(self.page.get_by_role("link", name="王", exact=True)).to_be_visible()
-        assert set(Contact.objects.values_list("display_name", flat=True)) == {
-            "Sukarno",
-            "王",
-        }
+            expect(
+                self.page.get_by_text("ui-reviewer", exact=True).last
+            ).to_be_visible()
 
-    def test_existing_full_and_complex_names_survive_correspondence_edits(self):
-        self.allow_contacts()
-        examples = [
-            save_contact(Contact(name={"full": "Unparsed Mary Beth van Berg"})),
-            save_contact(
-                Contact(
-                    name={
-                        "components": [
-                            {"kind": "surname", "value": "Rivera"},
-                            {"kind": "separator", "value": "・"},
-                            {"kind": "surname", "value": "Barrientos"},
-                            {"kind": "given", "value": "Diego Luis"},
-                        ],
-                        "isOrdered": True,
-                        "defaultSeparator": "",
-                    }
-                )
-            ),
-        ]
-        examples.append(
-            save_contact(
-                Contact(kind="organization", name={"full": "Existing\r\nOrganization"})
-            )
-        )
-        examples.extend(
-            [
-                save_contact(Contact(name={"full": "Unparsed\r\nPerson"})),
-                save_contact(
-                    Contact(
-                        name={
-                            "components": [{"kind": "given", "value": "Given\r\nName"}],
-                            "isOrdered": True,
-                            "defaultSeparator": " ",
-                        }
-                    )
-                ),
-            ]
-        )
-        originals = [contact.name for contact in examples]
-        with self.browser_page():
-            self.login()
-            for contact in examples:
-                self.page.goto(
-                    f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
-                )
-                if contact.kind == "organization" or "components" not in contact.name:
-                    field = (
-                        "Organization name"
-                        if contact.kind == "organization"
-                        else "Name"
-                    )
-                    name_input = self.page.get_by_label(field, exact=True)
-                    expect(name_input).to_be_visible()
-                    expect(name_input).to_have_value(
-                        contact.display_name.replace("\r\n", "\n").replace("\r", "\n")
-                    )
-                    expect(
-                        self.page.get_by_label("Given name", exact=True)
-                    ).to_have_count(0)
-                else:
-                    expect(
-                        self.page.get_by_label("Given name", exact=True)
-                    ).to_be_visible()
-                    expect(
-                        self.page.get_by_label("Surname", exact=True)
-                    ).to_be_visible()
-                    expect(self.page.get_by_label("Name", exact=True)).to_have_count(0)
-                expect(
-                    self.page.get_by_text("Current name:", exact=False)
-                ).to_have_count(0)
-                if contact.display_name == "Unparsed Mary Beth van Berg" and (
-                    directory := os.environ.get("CRM_SCREENSHOTS_DIR")
-                ):
-                    path = Path(directory)
-                    path.mkdir(parents=True, exist_ok=True)
-                    self.page.screenshot(
-                        path=str(path / "unstructured-name.png"), full_page=True
-                    )
-                self.page.get_by_label("Email").fill("updated@example.invalid")
-                self.page.get_by_role("button", name="Save", exact=True).click()
-                expect(
-                    self.page.get_by_role(
-                        "link", name=" ".join(contact.display_name.split()), exact=True
-                    )
-                ).to_be_visible()
-        for contact, original in zip(examples, originals, strict=True):
-            contact.refresh_from_db()
-            assert contact.name == original
-            assert contact.email == "updated@example.invalid"
-
-    def test_organization_retains_one_ordinary_name_field(self):
+    def test_organization_uses_name_and_stock_delete_keeps_activity(self):
         self.allow_contacts()
         with self.browser_page():
             self.login()
@@ -292,313 +122,89 @@ class TestContactBrowser(StaticLiveServerTestCase):
             )
             self.page.get_by_label("Contact type").select_option("organization")
             expect(self.page.get_by_label("Given name", exact=True)).to_be_hidden()
-            expect(self.page.get_by_label("Surname", exact=True)).to_be_hidden()
-            expect(self.page.get_by_text("Given name", exact=True)).to_be_hidden()
-            expect(self.page.get_by_text("Surname", exact=True)).to_be_hidden()
-            self.page.get_by_label("Organization name", exact=True).fill(
-                "Example Friends Meeting"
-            )
+            expect(self.page.get_by_label("Family name", exact=True)).to_be_hidden()
+            self.page.get_by_label("Name", exact=True).fill("Example Meeting")
             self.page.get_by_role("button", name="Create", exact=True).click()
-            self.page.get_by_role(
-                "link", name="Example Friends Meeting", exact=True
-            ).click()
-            self.page.get_by_label("Organization name", exact=True).fill(
-                "Updated Example Meeting"
+            link = self.page.get_by_role("link", name="Example Meeting", exact=True)
+            pk = resolve(urlsplit(link.get_attribute("href")).path).kwargs["pk"]
+            link.click()
+            expect(self.page.get_by_label("Name", exact=True)).to_have_value(
+                "Example Meeting"
             )
+            self.page.get_by_label("Name", exact=True).fill("Updated Meeting")
             self.page.get_by_role("button", name="Save", exact=True).click()
+            self.page.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:delete', args=[pk])}"
+            )
+            self.page.get_by_role("button", name="Yes, delete", exact=True).click()
+            self.page.get_by_role("button", name="Reports", exact=True).click()
+            self.page.get_by_role("link", name="Site history", exact=True).click()
             expect(
-                self.page.get_by_role(
-                    "link", name="Updated Example Meeting", exact=True
-                )
+                self.page.get_by_text("Updated Meeting", exact=True).first
             ).to_be_visible()
-        contact = Contact.objects.get()
-        assert contact.kind == Contact.Kind.ORGANIZATION
-        assert contact.name == {"full": "Updated Example Meeting"}
+            expect(self.page.get_by_text("Deleted", exact=True)).to_be_visible()
 
-    def test_kind_changes_keep_drafts_and_show_relevant_validation(self):
+    def test_existing_unsplit_name_is_directly_editable(self):
         self.allow_contacts()
+        contact = Contact.objects.create(name="Pat Morgan")
         with self.browser_page():
             self.login()
             self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:add')}"
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
             )
-            kind = self.page.get_by_label("Contact type")
-            given = self.page.get_by_label("Given name", exact=True)
-            surname = self.page.get_by_label("Surname", exact=True)
-            organization = self.page.get_by_label("Organization name", exact=True)
-            given.fill("Retained given draft")
-            surname.fill("Retained surname draft")
-            kind.select_option("organization")
-            organization.fill("Example Organization")
-            kind.select_option("person")
-            expect(given).to_have_value("Retained given draft")
-            expect(surname).to_have_value("Retained surname draft")
-            expect(given).to_be_enabled()
-            expect(organization).to_be_disabled()
-            kind.select_option("organization")
-            expect(organization).to_have_value("Example Organization")
-            self.page.get_by_label("Email").fill("invalid@local")
-            self.page.get_by_role("button", name="Create", exact=True).click()
-            expect(
-                self.page.get_by_text("Enter a valid email address.")
-            ).to_be_visible()
-            expect(organization).to_have_value("Example Organization")
-            expect(given).to_be_hidden()
-            expect(given).to_be_disabled()
-            self.page.get_by_label("Email").fill("valid@example.invalid")
-            organization.fill("")
-            self.page.get_by_role("button", name="Create", exact=True).click()
+            expect(self.page.get_by_label("Given name", exact=True)).to_have_count(0)
+            expect(self.page.get_by_label("Name", exact=True)).to_have_value(
+                "Pat Morgan"
+            )
+            self.page.get_by_label("Name", exact=True).fill("")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            expect(self.page.get_by_text("Enter a name.", exact=True)).to_be_visible()
+            self.page.get_by_label("Name", exact=True).fill("Pat Updated")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+        contact.refresh_from_db()
+        assert contact.name == "Pat Updated"
+        assert not contact.given_name
+        assert not contact.family_name
+
+    def test_existing_contact_type_changes_use_ordinary_name_fields(self):
+        self.allow_contacts()
+        contact = Contact.objects.create(given_name="Type", family_name="Example")
+        with self.browser_page():
+            self.login()
+            url = f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
+            self.page.goto(url)
+            self.page.get_by_label("Contact type").select_option("organization")
+            expect(self.page.get_by_label("Given name", exact=True)).to_be_hidden()
+            self.page.get_by_role("button", name="Save", exact=True).click()
             expect(
                 self.page.get_by_text("Enter an organization name.", exact=True)
             ).to_be_visible()
-            organization.fill("Example Organization")
-            self.page.get_by_role("button", name="Create", exact=True).click()
-            self.page.get_by_role(
-                "link", name="Example Organization", exact=True
-            ).click()
-            kind.select_option("person")
-            full_name = self.page.get_by_label("Name", exact=True)
-            expect(full_name).to_have_value("Example Organization")
-            expect(organization).to_be_hidden()
+            self.page.get_by_label("Name", exact=True).fill("Type Meeting")
             self.page.get_by_role("button", name="Save", exact=True).click()
-            self.page.get_by_role(
-                "link", name="Example Organization", exact=True
-            ).click()
-            kind.select_option("organization")
-            expect(organization).to_have_value("Example Organization")
-            self.page.get_by_role("button", name="Save", exact=True).click()
-        contact = Contact.objects.get()
-        assert contact.kind == Contact.Kind.ORGANIZATION
-        assert contact.name == {"full": "Example Organization"}
-        assert contact.history.count() == 3
-
-    def test_full_name_edit_and_blank_validation_preserve_history(self):
-        self.allow_contacts()
-        original = {"full": "Rivera Barrientos"}
-        contact = save_contact(Contact(name=original))
-        original = contact.name
-        with self.browser_page():
-            self.login()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
-            )
-            name = self.page.get_by_label("Name", exact=True)
-            expect(name).to_have_value("Rivera Barrientos")
+            self.page.goto(url)
+            self.page.get_by_label("Contact type").select_option("person")
             expect(self.page.get_by_label("Given name", exact=True)).to_have_count(0)
-            expect(
-                self.page.locator("[data-contact-name], [data-name-part]")
-            ).to_have_count(0)
-            name.fill("")
-            self.page.get_by_label("Email").fill("retained@example.invalid")
-            self.page.get_by_role("button", name="Save", exact=True).click()
-            expect(self.page.get_by_text("Enter a name.", exact=True)).to_be_visible()
-            expect(self.page.get_by_label("Email")).to_have_value(
-                "retained@example.invalid"
+            expect(self.page.get_by_label("Name", exact=True)).to_have_value(
+                "Type Meeting"
             )
-            name.fill("王大明")
             self.page.get_by_role("button", name="Save", exact=True).click()
-            expect(
-                self.page.get_by_role("link", name="王大明", exact=True)
-            ).to_be_visible()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:history', args=[contact.pk])}"
-            )
-            row = self.page.get_by_role("table").locator("tbody > tr").first
-            expect(row.locator("dl")).to_contain_text("Rivera Barrientos")
-            expect(row.locator("dl")).to_contain_text("王大明")
-            assert row.locator("details").get_attribute("open") is None
         contact.refresh_from_db()
-        assert contact.name == {"full": "王大明"}
-        assert contact.history.first().before["name"] == original
+        assert contact.kind == "person"
+        assert contact.name == "Type Meeting"
+        assert not contact.given_name
+        assert not contact.family_name
 
-    def test_edited_name_follows_type_until_destination_has_its_own_draft(self):
-        self.allow_contacts()
-        contacts = [
-            save_contact(
-                Contact(
-                    name={
-                        "components": [
-                            {"kind": "given", "value": "Before"},
-                            {"kind": "surname", "value": "Person"},
-                        ],
-                        "isOrdered": True,
-                        "defaultSeparator": " ",
-                    }
-                )
-            ),
-            save_contact(Contact(name={"full": "Before Full"})),
-            save_contact(
-                Contact(kind="organization", name={"full": "Before Organization"})
-            ),
-        ]
+    def test_staff_without_contact_permissions_is_denied(self):
+        Contact.objects.create(name="Private Browser Example")
         with self.browser_page():
             self.login()
-            for index, contact in enumerate(contacts):
-                self.page.goto(
-                    f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
-                )
-                kind = self.page.get_by_label("Contact type")
-                source = self.page.get_by_label(
-                    "Given name"
-                    if index == 0
-                    else ("Name" if index == 1 else "Organization name"),
-                    exact=True,
-                )
-                source.fill(f"Edited {index}")
-                destination_kind = "person" if index == 2 else "organization"
-                kind.select_option(destination_kind)
-                destination = self.page.get_by_label(
-                    "Name" if index == 2 else "Organization name", exact=True
-                )
-                expect(destination).to_have_value(
-                    f"Edited {index}" + (" Person" if index == 0 else "")
-                )
-                kind.select_option(contact.kind)
-                expect(source).to_have_value(f"Edited {index}")
-                kind.select_option(destination_kind)
-                self.page.get_by_role("button", name="Save", exact=True).click()
-                expect(
-                    self.page.get_by_role(
-                        "link",
-                        name=f"Edited {index}" + (" Person" if index == 0 else ""),
-                        exact=True,
-                    )
-                ).to_be_visible()
-        for index, contact in enumerate(contacts):
-            contact.refresh_from_db()
-            assert contact.name == {
-                "full": f"Edited {index}" + (" Person" if index == 0 else "")
-            }
-            assert contact.history.first().before["display_name"].startswith("Before")
-
-    def test_multiline_name_edit_retains_work_during_invalid_email_recovery(self):
-        self.allow_contacts()
-        original = {"full": "Old\r\nName"}
-        contact = save_contact(Contact(name=original))
-        with self.browser_page():
-            self.login()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
-            )
-            name = self.page.get_by_label("Name", exact=True)
-            assert name.evaluate("element => element.tagName") == "TEXTAREA"
-            name.fill("Typed\nNew name")
-            self.page.get_by_label("Email").fill("bad")
-            self.page.get_by_label("Postal address").fill("Other retained work")
-            self.page.get_by_role("button", name="Save", exact=True).click()
-            expect(
-                self.page.get_by_text("Enter a valid email address.")
-            ).to_be_visible()
-            expect(name).to_have_value("Typed\nNew name")
-            expect(self.page.get_by_label("Postal address")).to_have_value(
-                "Other retained work"
-            )
-            self.page.get_by_label("Email").fill("valid@example.invalid")
-            self.page.get_by_role("button", name="Save", exact=True).click()
-            expect(
-                self.page.get_by_role("link", name="Typed New name", exact=True)
-            ).to_be_visible()
-        contact.refresh_from_db()
-        assert contact.name == {"full": "Typed\r\nNew name"}
-        assert contact.postal_address == "Other retained work"
-        assert contact.history.first().before["name"] == original
-
-    def test_history_pagination_and_results_show_the_selected_page(self):
-        self.allow_contacts()
-        contact = save_contact(
-            Contact(name={"full": "History Example"}, email="initial@example.invalid")
-        )
-        for number in range(1, 24):
-            contact.email = f"change-{number:02d}@example.invalid"
-            save_contact(contact)
-        history_path = reverse("wagtail_crm_contacts:history", args=[contact.pk])
-        results_path = reverse(
-            "wagtail_crm_contacts:history_results", args=[contact.pk]
-        )
-        with self.browser_page():
-            self.login()
-            self.page.goto(f"{self.live_server_url}{history_path}")
-            table = self.page.get_by_role("table").filter(
-                has=self.page.get_by_role("columnheader", name="Changes", exact=True)
-            )
-            rows = table.locator("tbody > tr")
-            expect(rows).to_have_count(20)
-            expect(rows.first.locator("dl")).to_contain_text(
-                "change-23@example.invalid"
-            )
-            next_page = self.page.get_by_role("link", name="Next", exact=True)
-            assert "p=2" in next_page.get_attribute("href")
-            with self.page.expect_response(
-                lambda response: (
-                    response.url.startswith(f"{self.live_server_url}{history_path}")
-                    and "p=2" in response.url
-                )
-            ):
-                next_page.click()
-            expect(self.page).to_have_url(f"{self.live_server_url}{history_path}?p=2")
-            expect(rows).to_have_count(4)
-            expect(rows.first.locator("dl")).to_contain_text(
-                "change-03@example.invalid"
-            )
-            fragment = self.page.request.get(
-                f"{self.live_server_url}{results_path}?p=2"
-            )
-            assert fragment.status == 200
-            assert "change-03@example.invalid" in fragment.text()
-            assert "change-23@example.invalid" not in fragment.text()
-            assert "<html" not in fragment.text().lower()
-            self.page.get_by_role("link", name="Previous", exact=True).click()
-            expect(rows).to_have_count(20)
-            expect(rows.first.locator("dl")).to_contain_text(
-                "change-23@example.invalid"
-            )
-
-    def test_delete_requires_confirmation_again_after_another_editor_changes_contact(
-        self,
-    ):
-        self.allow_contacts()
-        contact = save_contact(Contact(name={"full": "Before deletion review"}))
-        with self.browser_page():
-            self.login()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:delete', args=[contact.pk])}"
-            )
-            confirmation = self.page
-            editor = self.page.context.new_page()
-            editor.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
-            )
-            editor.get_by_label("Name", exact=True).fill("Changed before deletion")
-            editor.get_by_role("button", name="Save", exact=True).click()
-            confirmation.get_by_role("button", name="Yes, delete", exact=True).click()
-            expect(
-                confirmation.get_by_text(
-                    "This contact changed while you were working.", exact=False
-                )
-            ).to_be_visible()
-            expect(
-                confirmation.get_by_role(
-                    "heading", name="Delete Changed before deletion", exact=True
-                )
-            ).to_be_visible()
-            confirmation.get_by_role("button", name="Yes, delete", exact=True).click()
-            expect(confirmation).to_have_url(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:index')}"
-            )
-        assert not Contact.objects.filter(pk=contact.pk).exists()
-
-    def test_admin_user_without_crm_permission_cannot_open_contact_list(self):
-        Contact.objects.create(display_name="Private Browser Example")
-        with self.browser_page():
-            self.login()
-            response = self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:index')}"
-            )
-            assert response.status == 200
-            expect(self.page).to_have_url(f"{self.live_server_url}/admin/")
             expect(
                 self.page.get_by_role("link", name="Contacts", exact=True)
             ).to_have_count(0)
+            self.page.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:index')}"
+            )
+            expect(self.page).to_have_url(f"{self.live_server_url}/admin/")
             expect(
                 self.page.get_by_text("Private Browser Example", exact=True)
             ).to_have_count(0)

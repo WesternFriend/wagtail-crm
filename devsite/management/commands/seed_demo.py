@@ -1,12 +1,8 @@
-from typing import Any
-
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
-from wagtail_crm.contact_profile import render_name
-from wagtail_crm.models import Contact, ContactHistory
-from wagtail_crm.services import save_contact
+from wagtail_crm.contacts.models import Contact
 
 
 class Command(BaseCommand):
@@ -16,50 +12,27 @@ class Command(BaseCommand):
         if not settings.DEBUG:
             message = "Demo seeding is available only with DEBUG enabled."
             raise CommandError(message)
-
-        contacts: list[tuple[dict[str, Any], str, str]] = [
-            (
-                {
-                    "components": [
-                        {"kind": "given", "value": "Alex"},
-                        {"kind": "surname", "value": "Example"},
-                    ],
-                    "isOrdered": True,
-                    "defaultSeparator": " ",
-                },
-                Contact.Kind.PERSON,
-                "alex@example.invalid",
-            ),
-            (
-                {
-                    "components": [
-                        {"kind": "given", "value": "Jordan"},
-                        {"kind": "surname", "value": "Sample"},
-                    ],
-                    "isOrdered": True,
-                    "defaultSeparator": " ",
-                },
-                Contact.Kind.PERSON,
-                "jordan@example.invalid",
-            ),
-            (
-                {"full": "Example Friends Meeting"},
-                Contact.Kind.ORGANIZATION,
-                "clerk@example.invalid",
-            ),
-        ]
-        for name, kind, email in contacts:
-            if not Contact.objects.filter(
-                display_name=render_name(name), kind=kind, email=email
-            ).exists():
-                save_contact(
-                    Contact(name=name, kind=kind, email=email),
-                    origin=ContactHistory.Origin.DEMO,
-                )
-
+        for values in (
+            {
+                "given_name": "Alex",
+                "family_name": "Example",
+                "email": "alex@example.invalid",
+            },
+            {
+                "given_name": "Jordan",
+                "family_name": "Sample",
+                "email": "jordan@example.invalid",
+            },
+            {
+                "kind": Contact.Kind.ORGANIZATION,
+                "name": "Example Friends Meeting",
+                "email": "clerk@example.invalid",
+            },
+        ):
+            Contact.objects.get_or_create(email=values["email"], defaults=values)
         editors, _ = Group.objects.get_or_create(name="CRM Editors")
         editors.permissions.add(
-            *Permission.objects.filter(content_type__app_label="wagtail_crm"),
+            *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts"),
             Permission.objects.get(
                 content_type__app_label="wagtailadmin", codename="access_admin"
             ),

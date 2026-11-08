@@ -1,57 +1,10 @@
 # Development and testing
 
-Wagtail is the only application UI. The site root redirects to Wagtail's login page. Build staff features with Wagtail forms, model viewsets and custom admin views where possible; templates and static assets for contact-name controls extend those admin forms, rather than creating a separate frontend.
+This is an alpha project with no existing installations. Wagtail is its only UI; the root redirects to Wagtail login. Use Django/Wagtail built-ins first. Contact fields are ordinary columns; stock actions, permissions and history provide the workflow.
 
-The local host lets developers run the reusable CRM app inside real Django and Wagtail before building the payment workflow. It uses Django 6.1.3 and Wagtail 8.1 with dependencies pinned in `uv.lock`. Supported Python versions are declared in `pyproject.toml`; local development and CI use the Python version in `mise.toml`, currently 3.14.
+Django 6.1.3 and Wagtail 8.1 are locked in `uv.lock`. Python support is declared in `pyproject.toml`; mise and CI use Python 3.14. SQLite 3.37+ is the default; PostgreSQL requires 15+ and the optional driver.
 
-Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs lint, typing, and workflow validation prerequisites before Django checks; browser installation and testing remain explicit. `mise run dev` (alias `mise run run`) starts the loopback development server. Task commands execute from the project root.
-
-## Unreleased contact migration revision
-
-PR #2 consolidates contact management into `0002_contact_profile`; the former `0003_alter_contact_kind` is folded into it. If a development database already applied the earlier 0002/0003, keep it and a backup intact, then rehearse migrations on a fresh disposable database or a fresh copy of the pre-contact `0001_initial` database. Do not delete migration records or rerun the data backfill on the existing database: that backfill assigns contact UIDs and creates history baselines. Existing development records have not been rewritten by this review pass.
-
-History uses readable action/origin labels (including Initial record, Staff edit, Migration and Synthetic data). Switching a person to an organization stores its full organization name and retains the former person components in history. Delete confirmation now carries the contact revision; changes made in another tab require renewed confirmation. Supported writes use the validated service; direct model saves only derive the canonical name and display text, following Django's separation of validation and persistence.
-
-## Dependency updates
-
-Use current stable compatible releases, with exact runtime and development versions retained in `uv.lock`. Framework minor-series bounds in `pyproject.toml` make feature upgrades deliberate; this project is no longer restricted to the earlier Django 5.2/Wagtail 7.4 LTS pair. Check the upstream compatibility matrix and intervening release notes before changing those bounds. Select a disposable database copy through `DATABASE_URL` before running checks or migrations against an existing installation: Django 6.1 system checks access configured databases. Refresh permitted dependencies with `mise exec -- uv lock --upgrade`, then run `mise run install`, `mise run check`, `mise run hooks`, `mise run test`, `mise run browser-install`, and `mise run browser`. CI uses the same locked tasks. Optional PostgreSQL dependencies should also resolve and install with `mise exec -- uv sync --locked --extra postgres`.
-
-Before applying framework migrations to an existing installation, back up its database and private files, test the upgrade against a disposable database copy, and verify contact identifiers and history. `mise run install` updates packages; it does not apply migrations. Run `mise run migrate` after that validation, and refresh collected static files for deployed installations. For a local SQLite rehearsal, make a consistent copy and keep all commands in the same shell:
-
-```bash
-sqlite3 .data/dev.sqlite3 ".backup '/absolute/path/to/disposable-copy.sqlite3'"
-export DATABASE_URL=sqlite:////absolute/path/to/disposable-copy.sqlite3
-mise run check
-mise run migrate
-mise run test
-mise run browser
-```
-
-Keep the original database and private-file backup together with its application revision and lockfile. To roll back an upgraded installation, stop it and restore the matching database/private files and application revision, then sync that revision's lock; a package downgrade alone does not reverse migrations. The baseline for this upgrade is `11fccf850e07ad879a90bb784c36ef2dcadc5212`. Rehearse rollback on a copy before operational use. These checks do not establish production readiness.
-
-Django 6.1 requires SQLite 3.37+ or PostgreSQL 15+. The development host enables `django.contrib.postgres` when its configured database is PostgreSQL, as required for Wagtail search fields and indexes. Inspect the Python SQLite library with `mise exec -- uv run --locked python -c "import sqlite3; print(sqlite3.sqlite_version)"`. The 2026-11-08 dependency audit checked all 64 locked registry packages: django-taggit 6.1.0 and django-treebeard 5.3.1 remain constrained by Wagtail (`<7` and `<6` respectively); pyee 14.0.0 remains constrained by Playwright (`<15`). Every other locked registry package was current stable. Revisit these limits with upstream releases rather than overriding them.
-
-## Layout
-
-| Path | Purpose |
-| --- | --- |
-| `src/wagtail_crm/` | Reusable app, Contact model, migrations, and Wagtail integration |
-| `devsite/` | Local host settings, routes, and synthetic-data command; excluded from the wheel |
-| `tests/` | Database, form, CSRF, permission, and demo-seed checks |
-| `tests/browser/` | Chromium login, contact creation, and unauthorized-access checks |
-| `.data/` | Ignored local SQLite database, random development key, and runtime media |
-| `mise.toml` | Tool versions and shared setup, quality, test, and development tasks |
-| `.github/workflows/checks.yml` | Code quality, Django coverage, and Chromium CI jobs |
-
-Contacts have an independent stable identifier and person/organization contact type. Person entry uses ordinary Given name and Surname fields; either alone is sufficient, with the displayed name generated on save. Multiword and non-Latin values are accepted. There are no component rows, join controls, naming modes or duplicate editable full name. Organizations use one organization-name field. Email and multiline postal address are optional.
-
-Existing/imported full names are not split. Recorded given components populate Given name; recorded surname/surname2 components populate Surname, including repeated components as grouped values. Only full-only names use one ordinary editable Name field. Unchanged grouped values retain every original component, order and separator; edited groups retain unrelated groups and representable formatting. Organizations have a populated Organization name. Stored multiline full names or known groups use ordinary textareas in their applicable fields. Unchanged values preserve the exact original object, including rich structure and CR/LF/CRLF despite browser normalization. Direct Name edits store a full-only replacement and retain old text/components in private history. Clearing the applicable name fields produces a validation error retaining other work. No Current name instructions, blank-preservation fallback or representation controls remain. Richer component editing and structured postal editing are deferred.
-
-Wagtail’s History destination shows changed fields first, with complete before/after snapshots in collapsed details. Inspect links to the same history and omits the internal UUID from routine details. Both history and its results endpoint require contact-view permission; view-only users have no edit action. Existing Wagtail audit records are retained. Supported create/edit/delete operations record private snapshots atomically, and history survives contact deletion. Existing Contacts migrate with their original PKs, exact names, kinds and email values; no name components, correspondence verification or donor attribution are inferred. Contacts remain independent of login accounts, and shared emails do not merge them. Financial models, provider imports, broad conversion tools and email sending remain unimplemented.
-
-## First run
-
-Install [mise](https://mise.jdx.dev/getting-started.html), then run these commands from the repository root:
+## Setup
 
 ```bash
 mise trust
@@ -63,110 +16,74 @@ mise exec -- uv run --locked python manage.py createsuperuser
 mise run dev
 ```
 
-Open <http://127.0.0.1:8000/admin/> and sign in with the credentials you chose. **Contacts** appears in the Wagtail navigation. The seed command adds three synthetic contacts and a **CRM Editors** group, but creates no login accounts. It can be rerun without duplicating those contacts and refuses to run with `DEBUG` disabled.
+Open <http://127.0.0.1:8000/admin/>. The seed command creates three synthetic contacts and a CRM Editors group, without creating logins or default passwords. It is repeatable and refuses to run outside DEBUG. Assign CRM Editors to a separately created staff account.
 
-SQLite needs no separate database service. The host creates its local data directory and a private random development key automatically. The database, key, media, browser artifacts, and virtual environment are not repository content. Email uses the console backend; only use synthetic development data.
+These local settings use HTTP, loopback and DEBUG; they do not establish production readiness. Email uses a console mailer. Keep donor data, credentials, generated documents and backups private; develop with synthetic data. Runtime database/key/media files live in ignored `.data/`.
 
-The server binds to loopback by default. These settings intentionally use local HTTP and `DEBUG=True`; production settings, MFA, login throttling, private financial artifact workflows, and deployment controls remain separate work.
+## Fresh alpha schema
 
-## Manual UI checklist
+The distribution is `wagtail_crm`; install the Django app `wagtail_crm.contacts`, label `wagtail_crm_contacts`. It has one fresh `contacts/migrations/0001_initial.py`. Old databases using the former `wagtail_crm` app label are not upgraded or imported. Keep any old local file as a backup and select a fresh SQLite database, or recreate and reseed your disposable development database. Do not remove migration records to force compatibility.
 
-1. Start the host, open `/admin/`, and verify that signed-out visitors are sent to the login page.
-2. Sign in with your local administrator and open **Contacts**. Confirm the three synthetic entries appear.
-3. Add a person or organization, edit it, and inspect the record. Verify an invalid email stays on the form with an error.
-4. Create a local staff user in Wagtail and assign **CRM Editors**. Verify that user can manage contacts without being a superuser.
-5. Give another local staff user Wagtail admin access without CRM permissions. Verify Contacts is absent and direct `/admin/crm/contacts/` access returns to the admin home with an access-denied message.
-6. Sign out and verify the contact list is no longer accessible.
+For a fresh database without touching the existing default file:
 
-Before handing off changes, personally complete these flows in the running UI, including existing unsplit names, recorded structured names, single names and validation recovery. Fix confusing interactions directly; do not add schema/formatting instructions around them. Use populated fields appropriate to the recorded data.
+```bash
+export DATABASE_URL=sqlite:////absolute/path/to/new-alpha.sqlite3
+mise run migrate
+mise run demo
+mise exec -- uv run --locked python manage.py createsuperuser
+mise run dev
+```
 
-Use individually created disposable local accounts for these checks. Wagtail redirects authenticated users without model permissions to its admin home; denial does not necessarily return an HTTP 403. The tests assert that protected data stays unavailable and prohibited writes do not happen.
+People use Given name and Family name, either alone or both. An existing unsplit name uses one editable Name field; it is never parsed. Organizations use Name. Email and multiline postal address are optional. Standard Wagtail History records actions, users and times; deleted contact activity remains in Reports → Site history. A menu hook exposes that existing report to CRM staff without page permissions. A small Inspect extension preserves postal-address line breaks; other views use framework defaults.
 
-## Automated checks
+There is no bespoke audit model, snapshot display, migration-baseline entry or optimistic locking. Concurrent editing follows Wagtail last-save-wins; protection is deferred. Import/export mappings, complex name formatting, structured address editing and financial workflows remain later work.
+
+## Layout and package boundary
+
+| Path | Purpose |
+| --- | --- |
+| `src/wagtail_crm/` | Distribution package, not a Django app |
+| `src/wagtail_crm/contacts/` | Contact model/form, Wagtail integration, initial migration and namespaced static asset |
+| `devsite/` | Synthetic development host and demo command; excluded from the wheel |
+| `tests/` | Staff-task, permission, model/form, seed and hook tests |
+| `tests/browser/` | Chromium tests using Django's isolated static live server |
+
+Future finance/imports/letters may depend on contacts; contacts imports no sibling domain or development host. No shared core or generic audit app exists. Build with `mise exec -- uv build --wheel`; verify migrations/static files are included and devsite/tests are excluded.
+
+## Checks and manual walkthrough
 
 ```bash
 mise run check
-mise run test
-```
-
-`mise run check` runs Ruff, mypy, actionlint, Django system checks, and migration consistency checks. `mise run test` runs the fast Django suite against an isolated test database and reports coverage; it does not require the development server or a browser. The default test selection explicitly excludes the browser marker.
-
-## Code quality policy
-
-The Ruff policy follows the broad explicit rule families used by the [Western Friend website](https://github.com/WesternFriend/westernfriend.org/blob/main/pyproject.toml): Django conventions, security checks, timezone handling, import hygiene, exception handling, and modern Python syntax. This project additionally enables pytest rules. Generated migrations are excluded from Ruff, and allowances for assertions, expected numeric results, and synthetic passwords are scoped to tests.
-
-Ruff owns Python formatting and import order. Mypy uses the Django plugin and Django 6.1 stubs to check the reusable app and development host, including untyped function bodies. Missing Wagtail typing information is handled by a targeted override rather than suppressing all missing imports. Coverage is initially informational; it does not substitute for the financial and authorization acceptance scenarios.
-
-```bash
-mise run format
-mise run typecheck
-mise install
-mise run hooks-install
 mise run hooks
-mise run hooks-push
-```
-
-The repository uses [prek](https://prek.j178.dev/) from `mise.toml`, configured in `prek.toml`. `mise run hooks-install` installs both pre-commit and pre-push Git hooks. Run `mise install` to provision tools and `mise run install` to sync the locked Python environment first. Built-in hooks check YAML, TOML, JSON, XML, whitespace, final newlines, line endings, merge markers, filename portability, symlinks, executable/shebang consistency, private keys, and files larger than 500 KiB. The size check includes existing files. Markdown hard line breaks are preserved.
-
-Use `mise run hooks-install` rather than calling `prek install` directly. The installer makes prek's generated Git shims enter `mise exec` using the local absolute mise executable path. This loads the project tools for VS Code and other GUI Git clients whose `PATH` may omit mise's shims. The machine-specific path stays inside Git's local hooks directory. Hook arguments and pre-push input are preserved. Rerun the task if mise moves or after reinstalling Git hooks; restarting VS Code or changing shell profiles should not be necessary.
-
-Local Python hooks use `uv run --locked` for Django 6.1 API modernization checks, Ruff lint and formatting checks, whole-project mypy, Django system checks, and missing migrations. Workflow files also run actionlint. Dependency metadata changes check lock freshness. Ruff and Django modernization report changes without rewriting Python; use `mise run format` to apply Ruff fixes. File-hygiene hooks can fix whitespace and line endings; inspect and restage their changes before committing. Private-key detection is a basic guard, not a complete credential scanner.
-
-Commit hooks inspect staged files; push hooks additionally run the fast Django test suite when relevant Python/configuration files changed. `mise run hooks` checks tracked **and untracked** nonignored files without staging them; `mise run hooks-push` runs the same selection including fast tests. Direct `prek run --all-files` covers tracked files only. To check an individual new file, use `prek run --files path/to/file.py`. Deleted files are omitted by prek. Browser tests remain an explicit `mise run browser` check.
-
-Installed BMAD tooling in `.agents/`, `.claude/`, `_bmad/`, and `.github/agents/` is excluded from these hooks; project planning documents in `_bmad-output/` remain checked. Ruff also excludes vendored tooling so `mise run check` and hooks share the project lint scope. Run hooks from a Git checkout with mise tools on `PATH`. Neither command stages or commits changes.
-
-## GitHub Actions
-
-The `Checks` workflow runs on pull requests, pushes to `main`, and manual dispatch. Three independent Ubuntu 24.04 jobs install tools through mise and run `mise run install` against `uv.lock`:
-
-- Code quality: `mise run check` and `mise run hooks`.
-- Django tests: `mise run test`, including coverage in the job log and a runner-local XML report.
-- Chromium: `mise run browser-install -- --with-deps`, then `mise run browser`.
-
-This covers the checks in `mise run hooks-push` while the dedicated test job adds coverage; tests need not run twice in CI. Chromium installs its Linux system libraries as well as the browser. CI tests use synthetic records and isolated test databases, without production credentials or a running development server.
-
-The workflow uses read-only repository permissions, disables persisted checkout credentials, pins external actions to full commit SHAs with release comments, and cancels superseded runs. It has no deployment, external coverage service, or PR-comment automation. Use `mise run workflow-lint` to validate workflow syntax and expressions locally. Website-specific daisyUI checks and HTML formatters are deferred until this package owns frontend templates.
-
-## Browser checks
-
-Install the Playwright browser once, then run the browser suite:
-
-```bash
+mise run test
 mise run browser-install
 mise run browser
 ```
 
-Linux CI or a minimal Linux machine may need system browser dependencies:
+`check` runs Ruff, mypy, actionlint, system checks and migration drift. `test` runs fast pytest/Django tests with coverage, excluding browser tests. Browser tests exercise real Wagtail login, person/organization creation and editing, optional details, validation recovery, unsplit and single names, search/Inspect/history, deletion activity and denied access. They use synthetic accounts and their own database; no separate server is needed. Linux may need `mise run browser-install -- --with-deps`. A managed Chromium can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Optional `CRM_SCREENSHOTS_DIR` saves a synthetic form screenshot; do not commit private data.
+
+Before requesting review, personally run these tasks in the application: create/find/edit/Inspect a person and organization; reopen known fields populated; edit an unsplit name without guessing; save a single name and blank optional details; recover from invalid email/name errors; view standard History and Site history; verify a staff account without contact permission cannot access contact records. Fix confusing interactions directly instead of adding instructions.
+
+## Tools, hooks and CI
+
+`mise tasks` lists commands; `mise install` provisions tools and `mise run install` synchronizes the lock. Use `mise run format` for Ruff fixes. Ruff owns formatting/imports, mypy checks the app and host with Django stubs, and missing upstream typing uses targeted overrides. Coverage is informational, not financial validation.
+
+Install Git hooks with `mise run hooks-install`. The installer makes generated prek shims enter the local absolute mise executable, so VS Code and other GUI Git clients load the same tools. Machine-specific paths remain in `.git/hooks`; reinstall if mise moves. Hook arguments and pre-push input are preserved.
+
+`mise run hooks` covers tracked and untracked nonignored files; `mise run hooks-push` also runs fast tests. Commit hooks inspect staged files. Plain `prek run --all-files` covers only tracked files. Hooks check file hygiene, conflicts, private keys, size, lock freshness, Django API modernization, Ruff, mypy, system checks and migrations. Inspect/restage any hygiene fixes; commands do not stage or commit. Installed BMAD tooling is excluded; project planning files remain checked. Browser tests stay explicit.
+
+GitHub Actions runs the same locked mise tasks in three Ubuntu 24.04 jobs: quality/hooks, fast tests/coverage and Chromium. Actions are SHA-pinned, repository permissions are read-only, checkout credentials are not persisted, and superseded runs are cancelled. There is no deployment or external coverage upload.
+
+## PostgreSQL and dependency updates
 
 ```bash
-mise run browser-install -- --with-deps
+mise exec -- uv sync --locked --extra postgres
+DATABASE_URL=postgresql://crm:local-only@127.0.0.1:5432/crm_dev mise run migrate
+DATABASE_URL=postgresql://crm:local-only@127.0.0.1:5432/crm_dev mise run test
 ```
 
-The browser suite starts Django's static live server and creates its own synthetic staff accounts in an isolated test database. It does not use the local development administrator or require a separately running server. Tests exercise actual login, Wagtail navigation, ordinary person creation/editing, single names, validation, preservation of existing names, organization names, and denial for a user without CRM permissions. Login starts at the root redirect into Wagtail.
+Use a disposable database and a role that can create the test database. The host enables `django.contrib.postgres` for that backend. SQLite tests do not establish PostgreSQL financial locking behavior; verify it when those workflows exist.
 
-If a managed environment supplies Chromium instead of allowing downloads, select it explicitly:
+Track current stable compatible releases. Review upstream compatibility/release notes, update minor-series constraints deliberately, run `mise exec -- uv lock --upgrade`, then install and run all checks. CI uses the same lock. Wagtail currently bounds django-taggit and django-treebeard; Playwright bounds pyee. Keep upstream compatibility constraints rather than forcing unrelated major versions.
 
-```bash
-PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium mise run browser
-```
-
-An optional `CRM_SCREENSHOTS_DIR` environment variable captures a synthetic person-form screenshot during the creation/editing check. Do not commit screenshots or other artifacts containing real donor data. Browser installation or launch failures must be reported as blocked checks, not treated as passing or silently skipped.
-
-## PostgreSQL and database portability
-
-SQLite is the local default. To exercise an available disposable PostgreSQL database, install the optional driver and supply its connection URL:
-
-```bash
-uv sync --locked --extra postgres
-DATABASE_URL=postgresql://crm:local-only@127.0.0.1:5432/crm_dev uv run python manage.py migrate
-DATABASE_URL=postgresql://crm:local-only@127.0.0.1:5432/crm_dev uv run pytest
-```
-
-The example credentials describe a disposable database you provision locally; they do not configure a production service. Django's test runner needs a role permitted to create its test database. Use the same `DATABASE_URL` for a server process that should use that database.
-
-SQLite does not provide PostgreSQL-equivalent locking and concurrency behavior. Add PostgreSQL CI coverage before implementing concurrent financial writes or relying on row locks. Passing SQLite checks alone does not validate the eventual production database.
-
-## Package boundary
-
-`uv build --wheel` builds the reusable app without `devsite` or the repository's tests. Keep host-specific configuration and demo commands in `devsite`; avoid imports from it inside `wagtail_crm`. Another Django project should be able to install the app and register its Wagtail integration without adopting this development host.
+For later operational installations, back up database/private files and rehearse upgrades and recovery against a copy before migration. Framework system checks can access configured databases, so set DATABASE_URL to the intended disposable database first. Refresh collected static assets after deployed upgrades.

@@ -1,10 +1,10 @@
 # Minimum operational release — acceptance criteria
 
-Status: proposed refinement, 2026-11-08. Derived from the approved brief, interview and supplied acceptance review. Not stakeholder approval, verified behavior, or a claim that the current Contacts scaffold implements this workflow. Existing FR identifiers remain stable; FR-20–22 add import recovery, explicit reconciliation and issuance recovery; FR-23 adds standards-based common models at Brylie's request, with the standards division and bounded first contact profile recorded in the contact architecture spine. Broader interoperability and operational acceptance remain open.
+The operational-cycle scenarios below remain proposed release gates. The six approved AC-18 staff tasks define the current contact increment; no standards profile, importer or export conformance is required for it.
 
 ## Acceptance evidence contract
 
-Each executed scenario must record its ID, requirement, dataset/version, exact input records and policy versions, independently established expected amounts and states, prohibited outcomes, actual results, evidence references, executor, reviewer and date. Record verdict as not run, blocked, pass or fail, with reasons. A missing required policy or expected result is blocked, never pass. No scenarios below have been executed.
+Each executed operational scenario must record its ID, requirement, dataset/version, exact input records and policy versions, independently established expected amounts and states, prohibited outcomes, actual results, evidence references, executor, reviewer and date. Record verdict as not run, blocked, pass or fail, with reasons. A missing required policy or expected result is blocked, never pass. Operational scenarios AC-01–17 have not been executed; synthetic developer evidence for AC-18 is recorded in the first-contact PR plan.
 
 Financial expected results must be established independently of the implementation and confirmed by the designated financial reviewer before financial acceptance. Synthetic fixtures can test arithmetic, state handling and UX, but do not approve real historical treatment. Restricted source evidence must remain outside public repository content and synthetic UX environments.
 
@@ -66,37 +66,25 @@ All amounts here are synthetic USD unless stated. Numerical allocations are fixt
 | AC-16: Export donor with gift/refund, policy/reviews, V1/V2 and attempts; separately restore records and artifacts | Independent reader reconstructs history, values, relationships and versions without app; no active secrets in export. Restore reproduces required records and matching artifacts with reviewed recovery procedure. | Manifest, schema, independent reconstruction notes and restore results; maintainer plus Editor/finance |
 | AC-17: Editor repeats representative synthetic cycle after onboarding on confirmed Mac/browser | Correct routine outcomes with minimal prompting; Editor explains amounts, blocks, next steps and document states, escalates finance appropriately. Keyboard/zoom/non-color/error checks pass; log help and repetition. Unknown numeric assistance/time targets are not silently treated as met. | Short tasks, resulting records, brief feedback, assistance log and accessibility findings; Editor/Brylie |
 
-| AC-18 (FR-23): Synthetic people and organizations, international names/addresses, multiple contact details and incomplete records; representative PayPal mapping | Selected standards/versions/profile and justified departures are documented. Import, storage and portable export preserve supported meaning and relationships; original source evidence remains traceable. Unsupported values stay visible, with no silent truncation, invented required values, identity merging or source-specific core conventions. | Architecture decision, authoritative standard references, field/relationship mappings, independent expected round-trip records, validation and dependency/license review; Brylie, with staff review of correspondence behavior |
 
-## Contact-profile refinement for AC-18
+## AC-18 — Minimum contact management
 
-Proposed additional cases: a mononym; an unstructured full name containing spaces; explicitly confirmed surname-first ordering; multiword given-name and surname components; repeated surname components; non-Latin text; two distinct contacts sharing an email; and existing scaffold contacts with unknown structure. Preserve known structure and supplied full names without inventing missing components or preferences. Verify the supported profile through import/storage/export; distinguish semantic preservation from byte-for-byte source preservation. Define expected mapping losses and unsupported cases before accepting interoperability claims. Staff entry is limited to ordinary given-name/surname fields; richer component editing and additional correspondence-name controls require demonstrated workflow need.
+Approved by Brylie on 2026-11-08. These staff tasks supersede the earlier name-profile, formatting, custom-history and concurrency criteria. They do not approve imports, exports or financial workflows.
 
-The bounded contact profile and verification results are recorded in [FIRST-CONTACT-PR.md](../../architecture/architecture-wagtail-crm-2026-11-08/FIRST-CONTACT-PR.md). Pure profile round-trips are tested; no source import, broad export, financial policy or stakeholder authority is established by those tests. The agreed standards division is recorded in `addendum.md`.
-
-Repeated recorded given/surname/surname2 components populate the ordinary Given name/Surname groups without parsing words. Unchanged saves retain exact structure and line endings. Edits replace only changed groups, preserving unrelated recorded groups, order and representable separators; history retains the original. A multiline group uses an ordinary textarea for its proper field. Only full-only people use Name; richer component controls remain deferred.
-
-The following cases capture Brylie's agreed identity and name behavior. The bounded contact increment verifies name preservation, component rendering/history, migration, incomplete contact details and correspondence editing. Source/account mappings, attribution, imported evidence, delivery readiness and issued snapshots remain later work. Exact supported components and rendering rules are documented in the contact architecture spine; passing contact tests does not accept those later capabilities.
-
-| Case | Input/action | Expected result |
+| Case | Staff task | Observable result |
 | --- | --- | --- |
-| AC-18-I01 | Staff creates a contact with incomplete details | Contact is valid under the minimal identity profile; missing correspondence information remains visible. Creation alone establishes neither payment attribution nor donor/payer/subscriber/recipient roles. |
-| AC-18-I02 | Same external identifier appears in different source accounts; confirmed mapping receives conflicting new evidence | Mapping reuse stays inside documented source/account scope. Do not reuse solely on matching identifier text across accounts, overwrite a confirmed mapping, or reassign payments silently; conflict requires review. |
-| AC-18-N01 | Edit a supported confirmed given name or surname | Generate the displayed name without duplicate entry. Preserve multiword values; retain prior values in history. No staff ordering or separator controls are required. |
-| AC-18-N02 | Open an existing/imported unstructured full name and edit correspondence | Populate one editable Name field without parsing. Unchanged text preserves the exact name object; correspondence edits require no name re-entry. Clearing Name returns a validation error retaining other work. |
-| AC-18-N03 | Staff edits a previously full-only name | Edit the populated Name directly, save a full-only replacement and retain prior text/components in history. Staff conversion to component structure is deferred; do not infer a split. |
-| AC-18-N04 | Existing names contain repeated components, surname-first ordering or custom separators | Preserve supported stored structure exactly on unchanged/correspondence-only saves. More elaborate staff editing is deferred; no naming-mode workflow is exposed. |
-| AC-18-N05 | Add a person | One ordinary Wagtail form immediately exposes Given name and Surname. Given name alone, surname alone, and both are valid; a new person with both blank gets a clear error retaining other entered work. No component rows, join controls, naming modes, extra steps or duplicate editable full name. |
-| AC-18-N06 | Change names after issuing an acknowledgment | Current values and prior values remain traceable to their provenance. The issued name snapshot and artifact remain unchanged; existing correction/revision rules apply if a new document is required. |
-| AC-18-N09 | Change a structured person to an organization | Store the organization name as full text; keep prior person components and identity in history. |
-| AC-18-C06 | Delete confirmation is open when another editor changes the contact | Reject the stale confirmation, preserve the contact and both audit logs, show the latest name, and require renewed confirmation. Missing/invalid revisions cannot delete. |
-| AC-18-N07 | Migrate existing scaffold Contacts | Preserve every display name as an unstructured full name; do not invent components, ordering, correspondence preferences or transaction attribution. Preserve contact identifiers and existing relationships. |
-| AC-18-N08 | Open a contact with the unparsed name Pat Morgan | Show an ordinary populated editable Name with Pat Morgan, without given/surname replacements, Current name instructions, notes or mode controls. Organization names are populated too. Use text inputs for single-line names and textareas only for stored multiline values; unchanged browser-normalized CR/LF/CRLF preserves exact storage. |
-| AC-18-C04 | Inspect contact form, listing, filters and details | Use Contact type consistently. Routine details omit the UUID; stable identifiers and retained snapshots remain unchanged. |
-| AC-18-C05 | Open History from editing or Inspect, including view-only and unauthorized users | Both entry points lead to the same Wagtail History destination. Show only changed fields in routine update summaries; full old/new snapshots are collapsed, accessible and escaped. Preserve structure-only changes, actor/time/origin and pagination. Require contact-view permission on history/results; view-only users get no edit action. Keep the original audit records. |
-| AC-18-C01 | Create a contact with no email; import additional payer email evidence | Contact remains valid. Support one optional correspondence email, retaining other imported addresses as evidence. Confirming correspondence does not establish donor attribution; multiple-email management is not required initially. |
-| AC-18-C02 | Record one international postal correspondence address or leave it incomplete | No mandatory U.S.-specific fields; contact remains valid. Missing details affect readiness only when postal delivery is required. Multiple and seasonal address management is deferred. |
-| AC-18-C03 | Review a contact before the Editor has confirmed delivery practice | Keep channel/process unresolved. Do not infer postal/email delivery or introduce required preference/routing controls. PDFs, external dispatch and actual-dispatch records remain the delivery direction. |
+| AC-18-01 | Add a person | Enter Given name, Family name, or both in one ordinary Wagtail form; single, multiword and non-Latin names work without duplicate entry. |
+| AC-18-02 | Add an organization | Enter one Name without person-name fields. |
+| AC-18-03 | Open an existing contact | Its recorded name remains intact and is never split automatically; an unsplit name is directly editable. |
+| AC-18-04 | Edit a contact | Change name, contact type, optional email and postal address in one form; validation explains errors and retains entered work. |
+| AC-18-05 | Review activity | Use Wagtail History to identify actions, users and times. Activity for deleted contacts remains available through Wagtail Site history. |
+| AC-18-06 | Use restricted accounts | Accounts without contact permissions cannot view or change contacts. Wagtail's standard model permissions govern access. |
+
+Concurrent-edit protection is deferred; ordinary Wagtail last-save-wins behavior is accepted for this slice. There are no existing installations to migrate. The contacts app begins with a fresh initial migration and no per-record migration history entries.
+
+### Future interoperability
+
+Use established contact standards when a concrete import/export workflow needs mappings. JSContact, vCard, Schema.org and CLDR remain references for that later design; this slice supplies no codec or conformance claim. Donor attribution, source/account mappings, delivery readiness and issued-document snapshots remain separate future tasks.
 
 ## Decisions required before accepting affected increments
 
@@ -105,7 +93,6 @@ These are open items, not assigned authority. Brylie's next coordination action 
 | Decision | Proposed decision role; next action | Revisit/acceptance condition |
 | --- | --- | --- |
 | Named business, coverage, dispute, finance, issue and closure authorities | Business owner with Editor/bookkeeper; confirm names and permission/approval boundaries | Before accepting authority-dependent operational gates |
-| Common-model standards, versions, supported profile and libraries | Brylie; compare established standards against representative records, document selection/mappings/departures and review dependency licenses | Before implementing or materially extending common models; AC-18 cannot pass without a recorded selection |
 | Letter addressee and greeting needs | Editor with Brylie; inspect approved letter and real workflow, using the recorded name and approved template where adequate | Before letter behavior acceptance; introduce per-contact controls only if demonstrated needs justify them |
 | Exact period, sources, accounts, date basis and offline coverage | Editor/bookkeeper; inspect exports and confirm scope | Before financial dataset and coverage acceptance |
 | Duplicate keys, rejected rows, interruption boundaries | Brylie plus source reviewer; inspect source semantics and specify retry/disposition examples | Before import acceptance |
