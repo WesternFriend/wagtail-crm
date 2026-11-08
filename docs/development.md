@@ -2,9 +2,28 @@
 
 Wagtail is the only application UI. The site root redirects to Wagtail's login page. Build staff features with Wagtail forms, model viewsets and custom admin views where possible; templates and static assets for contact-name controls extend those admin forms, rather than creating a separate frontend.
 
-The local host lets developers run the reusable CRM app inside real Django and Wagtail before building the payment workflow. It uses Django 5.2 LTS and Wagtail 7.4 LTS with dependencies pinned in `uv.lock`. Supported Python versions are declared in `pyproject.toml`; local development and CI use the Python version in `mise.toml`, currently 3.14.
+The local host lets developers run the reusable CRM app inside real Django and Wagtail before building the payment workflow. It uses Django 6.1.3 and Wagtail 8.1 with dependencies pinned in `uv.lock`. Supported Python versions are declared in `pyproject.toml`; local development and CI use the Python version in `mise.toml`, currently 3.14.
 
 Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs lint, typing, and workflow validation prerequisites before Django checks; browser installation and testing remain explicit. `mise run dev` (alias `mise run run`) starts the loopback development server. Task commands execute from the project root.
+
+## Dependency updates
+
+Use current stable compatible releases, with exact runtime and development versions retained in `uv.lock`. Framework minor-series bounds in `pyproject.toml` make feature upgrades deliberate; this project is no longer restricted to the earlier Django 5.2/Wagtail 7.4 LTS pair. Check the upstream compatibility matrix and intervening release notes before changing those bounds. Select a disposable database copy through `DATABASE_URL` before running checks or migrations against an existing installation: Django 6.1 system checks access configured databases. Refresh permitted dependencies with `mise exec -- uv lock --upgrade`, then run `mise run install`, `mise run check`, `mise run hooks`, `mise run test`, `mise run browser-install`, and `mise run browser`. CI uses the same locked tasks. Optional PostgreSQL dependencies should also resolve and install with `mise exec -- uv sync --locked --extra postgres`.
+
+Before applying framework migrations to an existing installation, back up its database and private files, test the upgrade against a disposable database copy, and verify contact identifiers and history. `mise run install` updates packages; it does not apply migrations. Run `mise run migrate` after that validation, and refresh collected static files for deployed installations. For a local SQLite rehearsal, make a consistent copy and keep all commands in the same shell:
+
+```bash
+sqlite3 .data/dev.sqlite3 ".backup '/absolute/path/to/disposable-copy.sqlite3'"
+export DATABASE_URL=sqlite:////absolute/path/to/disposable-copy.sqlite3
+mise run check
+mise run migrate
+mise run test
+mise run browser
+```
+
+Keep the original database and private-file backup together with its application revision and lockfile. To roll back an upgraded installation, stop it and restore the matching database/private files and application revision, then sync that revision's lock; a package downgrade alone does not reverse migrations. The baseline for this upgrade is `11fccf850e07ad879a90bb784c36ef2dcadc5212`. Rehearse rollback on a copy before operational use. These checks do not establish production readiness.
+
+Django 6.1 requires SQLite 3.37+ or PostgreSQL 15+. The development host enables `django.contrib.postgres` when its configured database is PostgreSQL, as required for Wagtail search fields and indexes. Inspect the Python SQLite library with `mise exec -- uv run --locked python -c "import sqlite3; print(sqlite3.sqlite_version)"`. The 2026-11-08 dependency audit checked all 64 locked registry packages: django-taggit 6.1.0 and django-treebeard 5.3.1 remain constrained by Wagtail (`<7` and `<6` respectively); pyee 14.0.0 remains constrained by Playwright (`<15`). Every other locked registry package was current stable. Revisit these limits with upstream releases rather than overriding them.
 
 ## Layout
 
@@ -70,7 +89,7 @@ mise run test
 
 The Ruff policy follows the broad explicit rule families used by the [Western Friend website](https://github.com/WesternFriend/westernfriend.org/blob/main/pyproject.toml): Django conventions, security checks, timezone handling, import hygiene, exception handling, and modern Python syntax. This project additionally enables pytest rules. Generated migrations are excluded from Ruff, and allowances for assertions, expected numeric results, and synthetic passwords are scoped to tests.
 
-Ruff owns Python formatting and import order. Mypy uses the Django plugin and Django 5.2 stubs to check the reusable app and development host, including untyped function bodies. Missing Wagtail typing information is handled by a targeted override rather than suppressing all missing imports. Coverage is initially informational; it does not substitute for the financial and authorization acceptance scenarios.
+Ruff owns Python formatting and import order. Mypy uses the Django plugin and Django 6.1 stubs to check the reusable app and development host, including untyped function bodies. Missing Wagtail typing information is handled by a targeted override rather than suppressing all missing imports. Coverage is initially informational; it does not substitute for the financial and authorization acceptance scenarios.
 
 ```bash
 mise run format
@@ -85,7 +104,7 @@ The repository uses [prek](https://prek.j178.dev/) from `mise.toml`, configured 
 
 Use `mise run hooks-install` rather than calling `prek install` directly. The installer makes prek's generated Git shims enter `mise exec` using the local absolute mise executable path. This loads the project tools for VS Code and other GUI Git clients whose `PATH` may omit mise's shims. The machine-specific path stays inside Git's local hooks directory. Hook arguments and pre-push input are preserved. Rerun the task if mise moves or after reinstalling Git hooks; restarting VS Code or changing shell profiles should not be necessary.
 
-Local Python hooks use `uv run --locked` for Django 5.2 API modernization checks, Ruff lint and formatting checks, whole-project mypy, Django system checks, and missing migrations. Workflow files also run actionlint. Dependency metadata changes check lock freshness. Ruff and Django modernization report changes without rewriting Python; use `mise run format` to apply Ruff fixes. File-hygiene hooks can fix whitespace and line endings; inspect and restage their changes before committing. Private-key detection is a basic guard, not a complete credential scanner.
+Local Python hooks use `uv run --locked` for Django 6.1 API modernization checks, Ruff lint and formatting checks, whole-project mypy, Django system checks, and missing migrations. Workflow files also run actionlint. Dependency metadata changes check lock freshness. Ruff and Django modernization report changes without rewriting Python; use `mise run format` to apply Ruff fixes. File-hygiene hooks can fix whitespace and line endings; inspect and restage their changes before committing. Private-key detection is a basic guard, not a complete credential scanner.
 
 Commit hooks inspect staged files; push hooks additionally run the fast Django test suite when relevant Python/configuration files changed. `mise run hooks` checks tracked **and untracked** nonignored files without staging them; `mise run hooks-push` runs the same selection including fast tests. Direct `prek run --all-files` covers tracked files only. To check an individual new file, use `prek run --files path/to/file.py`. Deleted files are omitted by prek. Browser tests remain an explicit `mise run browser` check.
 

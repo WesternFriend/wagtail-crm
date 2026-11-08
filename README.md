@@ -60,7 +60,7 @@ The target is one nonprofit per installation, a separate staff application, and 
 
 ## Development approach
 
-The reusable package lives in `src/wagtail_crm/`; `devsite/` is a separate local host and is excluded from the package wheel. The starting framework pair is Django 5.2 LTS and Wagtail 7.4 LTS, with exact dependency versions in `uv.lock`. Processor normalization, financial decisions, and document generation will remain distinct modules within one application.
+The reusable package lives in `src/wagtail_crm/`; `devsite/` is a separate local host and is excluded from the package wheel. The current framework pair is Django 6.1.3 and Wagtail 8.1, with exact dependency versions in `uv.lock`. We track current stable compatible releases; upgrades are verified with the same local and CI checks. Processor normalization, financial decisions, and document generation will remain distinct modules within one application.
 
 The CRM will have its own database credentials, application secrets, sessions, and private file storage. It will initially exchange data through reviewed imports. Public website accounts and access to its content editor will not automatically grant CRM access.
 

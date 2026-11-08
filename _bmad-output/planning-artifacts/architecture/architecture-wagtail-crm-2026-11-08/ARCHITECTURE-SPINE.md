@@ -70,8 +70,8 @@ Repeated recorded given/surname/surname2 components populate the ordinary Given 
 
 | Existing framework | Locked version |
 | --- | --- |
-| Django | 5.2.19 |
-| Wagtail | 7.4.4 |
+| Django | 6.1.3 |
+| Wagtail | 8.1 |
 
 ## Mapping boundaries and deferred work
 
@@ -79,4 +79,4 @@ Mapping notes only: `individual`/`org` → Schema.org Person/Organization; rende
 
 ## References
 
-[RFC 9553](https://www.rfc-editor.org/rfc/rfc9553.html), [RFC 9554](https://www.rfc-editor.org/rfc/rfc9554.html), [RFC 9555](https://www.rfc-editor.org/rfc/rfc9555.html), [CLDR 49](https://www.unicode.org/reports/tr35/tr35-79/tr35-personNames.html), [Django 5.2 migrations](https://docs.djangoproject.com/en/5.2/topics/migrations/), [Wagtail 7.4 generic views](https://docs.wagtail.org/en/v7.4/extending/generic_views.html).
+[RFC 9553](https://www.rfc-editor.org/rfc/rfc9553.html), [RFC 9554](https://www.rfc-editor.org/rfc/rfc9554.html), [RFC 9555](https://www.rfc-editor.org/rfc/rfc9555.html), [CLDR 49](https://www.unicode.org/reports/tr35/tr35-79/tr35-personNames.html), [Django 6.1 migrations](https://docs.djangoproject.com/en/6.1/topics/migrations/), [Wagtail 8.1 generic views](https://docs.wagtail.org/en/v8.1/extending/generic_views.html).
