@@ -117,9 +117,7 @@ class TestContactBrowser(StaticLiveServerTestCase):
                 f"{self.live_server_url}{reverse('wagtail_crm_contacts:inspect', args=[pk])}"
             )
             inspect_html = self.page.content()
-            expect(self.page.locator("#contact-postal-address")).to_contain_text(
-                "Finland"
-            )
+            expect(self.page.locator("main")).to_contain_text("Finland")
             expect(self.page.get_by_text("Contact type", exact=True)).to_be_visible()
             history_url = reverse("wagtail_crm_contacts:history", args=[pk])
             history_link = self.page.get_by_role("link", name="History", exact=True)
@@ -554,6 +552,40 @@ class TestContactBrowser(StaticLiveServerTestCase):
             expect(rows.first.locator("dl")).to_contain_text(
                 "change-23@example.invalid"
             )
+
+    def test_delete_requires_confirmation_again_after_another_editor_changes_contact(
+        self,
+    ):
+        self.allow_contacts()
+        contact = save_contact(Contact(name={"full": "Before deletion review"}))
+        with self.browser_page():
+            self.login()
+            self.page.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:delete', args=[contact.pk])}"
+            )
+            confirmation = self.page
+            editor = self.page.context.new_page()
+            editor.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
+            )
+            editor.get_by_label("Name", exact=True).fill("Changed before deletion")
+            editor.get_by_role("button", name="Save", exact=True).click()
+            confirmation.get_by_role("button", name="Yes, delete", exact=True).click()
+            expect(
+                confirmation.get_by_text(
+                    "This contact changed while you were working.", exact=False
+                )
+            ).to_be_visible()
+            expect(
+                confirmation.get_by_role(
+                    "heading", name="Delete Changed before deletion", exact=True
+                )
+            ).to_be_visible()
+            confirmation.get_by_role("button", name="Yes, delete", exact=True).click()
+            expect(confirmation).to_have_url(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:index')}"
+            )
+        assert not Contact.objects.filter(pk=contact.pk).exists()
 
     def test_admin_user_without_crm_permission_cannot_open_contact_list(self):
         Contact.objects.create(display_name="Private Browser Example")

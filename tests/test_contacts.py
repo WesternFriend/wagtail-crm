@@ -167,7 +167,10 @@ def test_create_edit_inspect_and_delete_retain_private_history(client, contact_e
     assert "王小明" in response.content.decode()
     history = list(contact.history.all())
 
-    response = client.post(reverse("wagtail_crm_contacts:delete", args=[contact.pk]))
+    response = client.post(
+        reverse("wagtail_crm_contacts:delete", args=[contact.pk]),
+        {"expected_revision": contact.revision},
+    )
     assert response.status_code == 302
     assert not Contact.objects.exists()
     deleted = ContactHistory.objects.filter(contact_uid=uid, action="deleted").get()
@@ -408,7 +411,9 @@ def test_changed_contact_during_delete_returns_a_message(client, contact_editor)
         side_effect=ValidationError("This contact changed. Reload it before deleting."),
     ):
         response = client.post(
-            reverse("wagtail_crm_contacts:delete", args=[contact.pk]), follow=True
+            reverse("wagtail_crm_contacts:delete", args=[contact.pk]),
+            {"expected_revision": contact.revision},
+            follow=True,
         )
     assert response.status_code == 200
     assert "Reload it before deleting." in response.content.decode()
@@ -468,7 +473,7 @@ def test_history_summarizes_changes_and_collapses_complete_escaped_snapshots(
         name={"full": text}, postal_address="Unchanged private address"
     )
     contact.email = "new@example.test"
-    save_contact(contact, actor=contact_editor, origin="synthetic-import")
+    save_contact(contact, actor=contact_editor, origin=ContactHistory.Origin.DEMO)
     log(instance=contact, action="wagtail.create", user=contact_editor)
     log(instance=contact, action="wagtail.edit", user=contact_editor)
     client.force_login(contact_editor)
@@ -486,7 +491,7 @@ def test_history_summarizes_changes_and_collapses_complete_escaped_snapshots(
         assert "After: new@example.test" in table
         assert "Pat" not in table
         assert "Unchanged private address" not in table
-        assert "synthetic-import" in table
+        assert "Synthetic data" in table
         assert "reviewer" in table
         assert "<details>" in html
         assert "<details open" not in html
@@ -684,3 +689,81 @@ def test_creation_history_omits_empty_optional_changes(
     assert "<dt>Postal address</dt>" not in summary
     assert "&quot;email&quot;: &quot;&quot;" in html
     assert "&quot;postal_address&quot;: &quot;&quot;" in html
+
+
+def test_delete_requires_fresh_confirmation(client, contact_editor):
+    from wagtail.models import ModelLogEntry
+
+    contact = save_contact(Contact(name={"full": "Before"}))
+    client.force_login(contact_editor)
+    url = reverse("wagtail_crm_contacts:delete", args=[contact.pk])
+    response = client.get(url)
+    revision = response.context["form"]["expected_revision"].value()
+    contact.name = {"full": "After"}
+    save_contact(contact)
+    response = client.post(url, {"expected_revision": revision}, follow=True)
+    assert response.status_code == 200
+    assert "review the latest details before continuing" in response.content.decode()
+    assert Contact.objects.filter(pk=contact.pk).exists()
+    assert contact.history.count() == 2
+    assert not ModelLogEntry.objects.filter(action="wagtail.delete").exists()
+    assert response.context["form"]["expected_revision"].value() == contact.revision
+    client.post(url, {"expected_revision": contact.revision})
+    assert not Contact.objects.filter(pk=contact.pk).exists()
+    assert ModelLogEntry.objects.filter(action="wagtail.delete").count() == 1
+
+
+@pytest.mark.parametrize("revision", [None, "invalid", -1])
+def test_delete_without_valid_revision_cannot_delete(client, contact_editor, revision):
+    contact = save_contact(Contact(name={"full": "Protected"}))
+    client.force_login(contact_editor)
+    response = client.post(
+        reverse("wagtail_crm_contacts:delete", args=[contact.pk]),
+        {"expected_revision": revision} if revision is not None else {},
+    )
+    assert response.status_code == 200
+    assert response.context["form"].errors
+    assert Contact.objects.filter(pk=contact.pk).exists()
+    assert contact.history.count() == 1
+
+
+def test_inspect_postal_address_uses_standard_field_and_escapes_markup(
+    client, contact_editor
+):
+    contact = save_contact(
+        Contact(
+            name={"full": "Postal Example"},
+            postal_address="<script>private</script>\nFinland",
+        )
+    )
+    client.force_login(contact_editor)
+    response = client.get(reverse("wagtail_crm_contacts:inspect", args=[contact.pk]))
+    assert response.status_code == 200
+    fields = {field["label"]: field["value"] for field in response.context["fields"]}
+    assert fields["Postal address"] == "&lt;script&gt;private&lt;/script&gt;<br>Finland"
+    assert "<script>private</script>" not in response.content.decode()
+
+
+def test_delete_history_failure_rolls_back_contact_and_both_audit_logs(
+    client, contact_editor
+):
+    from wagtail.models import ModelLogEntry
+
+    contact = save_contact(Contact(name={"full": "Retained"}))
+    original_history = list(contact.history.values())
+    client.force_login(contact_editor)
+    with (
+        patch(
+            "wagtail_crm.services.ContactHistory.objects.using",
+            side_effect=RuntimeError("History unavailable"),
+        ),
+        pytest.raises(RuntimeError, match="History unavailable"),
+    ):
+        client.post(
+            reverse("wagtail_crm_contacts:delete", args=[contact.pk]),
+            {"expected_revision": contact.revision},
+        )
+    contact.refresh_from_db()
+    assert contact.display_name == "Retained"
+    assert list(contact.history.values()) == original_history
+    assert not ModelLogEntry.objects.filter(action="wagtail.delete").exists()

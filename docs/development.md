@@ -6,6 +6,12 @@ The local host lets developers run the reusable CRM app inside real Django and W
 
 Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs lint, typing, and workflow validation prerequisites before Django checks; browser installation and testing remain explicit. `mise run dev` (alias `mise run run`) starts the loopback development server. Task commands execute from the project root.
 
+## Unreleased contact migration revision
+
+PR #2 consolidates contact management into `0002_contact_profile`; the former `0003_alter_contact_kind` is folded into it. If a development database already applied the earlier 0002/0003, keep it and a backup intact, then rehearse migrations on a fresh disposable database or a fresh copy of the pre-contact `0001_initial` database. Do not delete migration records or rerun the data backfill on the existing database: that backfill assigns contact UIDs and creates history baselines. Existing development records have not been rewritten by this review pass.
+
+History uses readable action/origin labels (including Initial record, Staff edit, Migration and Synthetic data). Switching a person to an organization stores its full organization name and retains the former person components in history. Delete confirmation now carries the contact revision; changes made in another tab require renewed confirmation. Supported writes use the validated service; direct model saves only derive the canonical name and display text, following Django's separation of validation and persistence.
+
 ## Dependency updates
 
 Use current stable compatible releases, with exact runtime and development versions retained in `uv.lock`. Framework minor-series bounds in `pyproject.toml` make feature upgrades deliberate; this project is no longer restricted to the earlier Django 5.2/Wagtail 7.4 LTS pair. Check the upstream compatibility matrix and intervening release notes before changing those bounds. Select a disposable database copy through `DATABASE_URL` before running checks or migrations against an existing installation: Django 6.1 system checks access configured databases. Refresh permitted dependencies with `mise exec -- uv lock --upgrade`, then run `mise run install`, `mise run check`, `mise run hooks`, `mise run test`, `mise run browser-install`, and `mise run browser`. CI uses the same locked tasks. Optional PostgreSQL dependencies should also resolve and install with `mise exec -- uv sync --locked --extra postgres`.

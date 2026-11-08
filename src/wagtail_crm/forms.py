@@ -68,16 +68,18 @@ class ContactForm(forms.ModelForm):
 
     class Meta:
         model = Contact
-        fields = (
-            "kind",
-            "given_name",
-            "surname",
-            "full_name",
-            "organization_name",
-            "email",
-            "postal_address",
-            "expected_revision",
-        )
+        fields = ("kind", "email", "postal_address")
+
+    field_order = (
+        "kind",
+        "given_name",
+        "surname",
+        "full_name",
+        "organization_name",
+        "email",
+        "postal_address",
+        "expected_revision",
+    )
 
     class Media:
         js = ("wagtail_crm/contact_form.js",)
@@ -86,11 +88,24 @@ class ContactForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.actor = actor
         self.original_name = deepcopy(self.instance.name)
-        self.original_parts = simple_parts(self.original_name)
-        original_full = render_name(self.original_name) if self.original_name else ""
+        self.original_kind = self.instance.kind
+        self.original_name_valid = True
+        try:
+            self.original_full = (
+                render_name(self.original_name)
+                if self.original_name or self.instance.pk
+                else ""
+            )
+        except forms.ValidationError:
+            self.original_name_valid = False
+            self.original_full = ""
+        self.original_parts = (
+            simple_parts(self.original_name) if self.original_name_valid else None
+        )
         self.person_name_fields = (
             ("given_name", "surname")
-            if not self.original_name or self.original_parts
+            if self.original_name_valid
+            and (not self.original_name or self.original_parts)
             else ("full_name",)
         )
         self._preserve_stale_field_shape()
@@ -98,26 +113,28 @@ class ContactForm(forms.ModelForm):
             self.person_name_fields
         ):
             del self.fields[field]
-        initial = kwargs.get("initial") or {}
+        self._set_initial_names(kwargs.get("initial") or {})
+        self._disable_inactive_fields()
+        self.initial["expected_revision"] = self.instance.revision
+
+    def _use_textarea_if_multiline(self, field, value):
+        if field in self.fields and any(character in value for character in "\r\n"):
+            self.fields[field].widget = forms.Textarea(attrs={"rows": 3})
+
+    def _set_initial_names(self, initial):
         for field, kind in (("given_name", "given"), ("surname", "surname")):
-            if field in self.fields and field not in initial and self.original_parts:
-                self.initial[field] = self.original_parts.get(kind, "")
-            if (
-                field in self.fields
-                and self.original_parts
-                and any(
-                    character in self.original_parts.get(kind, "")
-                    for character in "\r\n"
-                )
-            ):
-                self.fields[field].widget = forms.Textarea(attrs={"rows": 3})
+            value = (self.original_parts or {}).get(kind, "")
+            if field in self.fields and field not in initial:
+                self.initial[field] = value
+            self._use_textarea_if_multiline(field, self.initial.get(field, value))
         for field in ("full_name", "organization_name"):
-            if field not in self.fields:
-                continue
-            if field not in initial:
-                self.initial[field] = original_full
-            if "\r" in original_full or "\n" in original_full:
-                self.fields[field].widget = forms.Textarea(attrs={"rows": 3})
+            if field in self.fields and field not in initial:
+                self.initial[field] = self.original_full
+            self._use_textarea_if_multiline(
+                field, self.initial.get(field, self.original_full)
+            )
+
+    def _disable_inactive_fields(self):
         selected_kind = (
             self.data.get(self.add_prefix("kind"))
             if self.is_bound
@@ -130,7 +147,6 @@ class ContactForm(forms.ModelForm):
         )
         for field in inactive:
             self.fields[field].disabled = True
-        self.initial["expected_revision"] = self.instance.revision
 
     def _preserve_stale_field_shape(self):
         self.stale_revision = False
@@ -154,11 +170,9 @@ class ContactForm(forms.ModelForm):
                 ):
                     self.person_name_fields = ("given_name", "surname")
                 for field in self.person_name_fields:
-                    if any(
-                        character in self.data.get(self.add_prefix(field), "")
-                        for character in "\r\n"
-                    ):
-                        self.fields[field].widget = forms.Textarea(attrs={"rows": 3})
+                    self._use_textarea_if_multiline(
+                        field, self.data.get(self.add_prefix(field), "")
+                    )
 
     def clean_expected_revision(self):
         value = self.cleaned_data["expected_revision"]
@@ -193,8 +207,8 @@ class ContactForm(forms.ModelForm):
             self.add_error(field, message)
             return
 
-        if not self.original_name or normalized(text) != normalized(
-            render_name(self.original_name)
+        if not self.original_name_valid or normalized(text) != normalized(
+            self.original_full
         ):
             self.instance.name = {"full": text}
 
@@ -202,6 +216,11 @@ class ContactForm(forms.ModelForm):
         self._clean_full_name(
             cleaned, "organization_name", "Enter an organization name."
         )
+        if (
+            "organization_name" not in self.errors
+            and self.original_kind != Contact.Kind.ORGANIZATION
+        ):
+            self.instance.name = {"full": cleaned["organization_name"]}
 
     def _clean_person_name(self, cleaned):
         if self.person_name_fields == ("full_name",):
@@ -260,7 +279,7 @@ class ContactForm(forms.ModelForm):
         }
 
     def _add_missing_groups(self, components, values):
-        for group in values.keys() - self.original_parts.keys():
+        for group in values.keys() - (self.original_parts or {}).keys():
             component = {"kind": group, "value": values[group]}
             boundary = {"kind": "separator", "value": " "}
             if not components:
@@ -310,3 +329,7 @@ class ContactForm(forms.ModelForm):
             )
             self.save_m2m()
         return instance
+
+
+class ContactDeleteForm(forms.Form):
+    expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)

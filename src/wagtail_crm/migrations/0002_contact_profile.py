@@ -64,6 +64,16 @@ class Migration(migrations.Migration):
             name="display_name",
             field=models.TextField(blank=True, editable=False, verbose_name="name"),
         ),
+        migrations.AlterField(
+            model_name="contact",
+            name="kind",
+            field=models.CharField(
+                "contact type",
+                choices=[("person", "Person"), ("organization", "Organization")],
+                default="person",
+                max_length=20,
+            ),
+        ),
         migrations.CreateModel(
             name="ContactHistory",
             fields=[
@@ -80,8 +90,29 @@ class Migration(migrations.Migration):
                 ("before", models.JSONField(null=True)),
                 ("after", models.JSONField(null=True)),
                 ("occurred_at", models.DateTimeField(auto_now_add=True)),
-                ("action", models.CharField(max_length=20)),
-                ("origin", models.CharField(max_length=100)),
+                (
+                    "action",
+                    models.CharField(
+                        max_length=20,
+                        choices=[
+                            ("baseline", "Initial record"),
+                            ("created", "Created"),
+                            ("updated", "Updated"),
+                            ("deleted", "Deleted"),
+                        ],
+                    ),
+                ),
+                (
+                    "origin",
+                    models.CharField(
+                        max_length=100,
+                        choices=[
+                            ("staff", "Staff edit"),
+                            ("migration", "Migration"),
+                            ("demo", "Synthetic data"),
+                        ],
+                    ),
+                ),
                 (
                     "actor",
                     models.ForeignKey(
@@ -100,7 +131,12 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={"ordering": ["-occurred_at", "-pk"], "default_permissions": ()},
+            options={
+                "ordering": ["-occurred_at", "-pk"],
+                "default_permissions": (),
+                "verbose_name": "contact change",
+                "verbose_name_plural": "contact changes",
+            },
         ),
         migrations.RunPython(preserve_contacts, migrations.RunPython.noop),
         migrations.AlterField(

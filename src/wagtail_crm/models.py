@@ -10,6 +10,22 @@ from django.db import models, router
 from .contact_profile import UUID_VERSION, render_name
 
 
+def derive_name(name, display_name):
+    """Return canonical name/display values without database reads or input mutation."""
+    if not name and display_name:
+        name = {"full": display_name}
+    name = deepcopy(name)
+    try:
+        if isinstance(name, dict) and "components" in name:
+            name.pop("full", None)
+        display_name = render_name(name)
+        if "components" in name:
+            name["full"] = display_name
+    except ValidationError as exc:
+        raise ValidationError({"name": exc.messages}) from exc
+    return name, display_name
+
+
 class Contact(models.Model):
     """A person or organization, independent of a website login account."""
 
@@ -37,55 +53,45 @@ class Contact(models.Model):
         update_fields = kwargs.get("update_fields")
         if update_fields is not None and not update_fields:
             return None
-        self.clean()
+        self.name, self.display_name = derive_name(self.name, self.display_name)
         if update_fields is not None and {"name", "display_name"} & set(update_fields):
             kwargs["update_fields"] = set(update_fields) | {"name", "display_name"}
         return super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()
-        original = None
-        if self.pk:
-            alias = self._state.db or router.db_for_read(type(self), instance=self)
-            original = (
-                type(self)
-                .objects.using(alias)
-                .filter(pk=self.pk)
-                .values("uid", "name", "display_name")
-                .first()
-            )
-        self._clean_name(original)
+        self.name, self.display_name = derive_name(self.name, self.display_name)
         if not isinstance(self.uid, uuid.UUID) or self.uid.version != UUID_VERSION:
             message = "Contact UID must use UUID version 4."
             raise ValidationError({"uid": message})
-        if original and self.uid != original["uid"]:
+        alias = self._state.db or router.db_for_read(type(self), instance=self)
+        original_uid = (
+            type(self)
+            .objects.using(alias)
+            .filter(pk=self.pk)
+            .values_list("uid", flat=True)
+            .first()
+            if self.pk
+            else None
+        )
+        if original_uid is not None and self.uid != original_uid:
             message = "A contact's stable identifier cannot be changed."
             raise ValidationError({"uid": message})
-
-    def _clean_name(self, original):
-        if not self.name and self.display_name:
-            self.name = {"full": self.display_name}
-        try:
-            name = deepcopy(self.name)
-            if (
-                isinstance(name, dict)
-                and "components" in name
-                and original
-                and "components" in original["name"]
-                and name.get("full") == original["name"].get("full")
-                and name.get("components") != original["name"].get("components")
-            ):
-                name.pop("full", None)
-            self.display_name = render_name(name)
-            if "components" in name:
-                name["full"] = self.display_name
-            self.name = name
-        except ValidationError as exc:
-            raise ValidationError({"name": exc.messages}) from exc
 
 
 class ContactHistory(models.Model):
     """Private snapshots retained even when a contact is deleted."""
+
+    class Action(models.TextChoices):
+        BASELINE = "baseline", "Initial record"
+        CREATED = "created", "Created"
+        UPDATED = "updated", "Updated"
+        DELETED = "deleted", "Deleted"
+
+    class Origin(models.TextChoices):
+        STAFF = "staff", "Staff edit"
+        MIGRATION = "migration", "Migration"
+        DEMO = "demo", "Synthetic data"
 
     contact = models.ForeignKey(
         Contact, null=True, on_delete=models.SET_NULL, related_name="history"
@@ -97,8 +103,8 @@ class ContactHistory(models.Model):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
     occurred_at = models.DateTimeField(auto_now_add=True)
-    action = models.CharField(max_length=20)
-    origin = models.CharField(max_length=100)
+    action = models.CharField(max_length=20, choices=Action.choices)
+    origin = models.CharField(max_length=100, choices=Origin.choices)
 
     class Meta:
         ordering = ["-occurred_at", "-pk"]

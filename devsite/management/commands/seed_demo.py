@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
 from wagtail_crm.contact_profile import render_name
-from wagtail_crm.models import Contact
+from wagtail_crm.models import Contact, ContactHistory
 from wagtail_crm.services import save_contact
 
 
@@ -54,7 +54,7 @@ class Command(BaseCommand):
             ).exists():
                 save_contact(
                     Contact(name=name, kind=kind, email=email),
-                    origin="demo",
+                    origin=ContactHistory.Origin.DEMO,
                 )
 
         editors, _ = Group.objects.get_or_create(name="CRM Editors")

@@ -36,7 +36,7 @@ def _current_contact(contact: Contact, alias: str, expected_revision: int) -> Co
         )
         raise ValidationError(message)
     if current.revision != expected_revision:
-        message = "This contact changed while you were editing. Reload it and review the latest details before saving."
+        message = "This contact changed while you were working. Reload it and review the latest details before continuing."
         raise ValidationError(message)
     return current
 
@@ -46,7 +46,7 @@ def save_contact(
     *,
     expected_revision: int | None = None,
     actor: AbstractBaseUser | None = None,
-    origin: str = "staff",
+    origin: str = ContactHistory.Origin.STAFF,
 ) -> Contact:
     """Validate and save, rejecting stale edits and rolling back failed history writes."""
     alias = router.db_for_write(Contact, instance=contact)
@@ -71,7 +71,9 @@ def save_contact(
                 before=before,
                 after=after,
                 actor_id=actor.pk if actor else None,
-                action="updated" if previous else "created",
+                action=ContactHistory.Action.UPDATED
+                if previous
+                else ContactHistory.Action.CREATED,
                 origin=origin,
             )
     except BaseException:
@@ -86,7 +88,7 @@ def delete_contact(
     *,
     expected_revision: int | None = None,
     actor: AbstractBaseUser | None = None,
-    origin: str = "staff",
+    origin: str = ContactHistory.Origin.STAFF,
 ) -> None:
     """Preserve the last contact state before an authorized, non-stale deletion."""
     alias = router.db_for_write(Contact, instance=contact)
@@ -99,7 +101,7 @@ def delete_contact(
             before=snapshot_contact(current),
             after=None,
             actor_id=actor.pk if actor else None,
-            action="deleted",
+            action=ContactHistory.Action.DELETED,
             origin=origin,
         )
         current.delete(using=alias)

@@ -251,7 +251,7 @@ def test_uid_cannot_be_reassigned():
     original_uid = contact.uid
     contact.uid = uuid4()
     with pytest.raises(ValidationError):
-        contact.save()
+        save_contact(contact)
     contact.refresh_from_db()
     assert contact.uid == original_uid
 
@@ -369,7 +369,7 @@ def test_empty_update_fields_is_a_complete_noop():
 
 
 @pytest.mark.django_db
-def test_new_conflicting_structured_full_is_rejected():
+def test_model_derives_structured_full_without_reading_original_name():
     contact = Contact(
         name={
             "full": "Contradiction",
@@ -378,10 +378,8 @@ def test_new_conflicting_structured_full_is_rejected():
             "defaultSeparator": " ",
         }
     )
-    with pytest.raises(ValidationError):
-        save_contact(contact)
-    assert not Contact.objects.exists()
-    assert not ContactHistory.objects.exists()
+    save_contact(contact)
+    assert contact.name["full"] == contact.display_name == "Alex"
 
 
 @pytest.mark.django_db
@@ -396,3 +394,46 @@ def test_explicit_stale_revision_is_rejected_without_history():
     contact.refresh_from_db()
     assert contact.email == "first@example.test"
     assert contact.history.count() == 2
+
+
+@pytest.mark.django_db
+def test_service_edit_has_no_repeat_name_validation_reads(django_assert_num_queries):
+    contact = save_contact(Contact(name={"full": "Original"}))
+    contact.name = {"full": "Changed"}
+    # Savepoint/release, locked row, UID immutability/uniqueness, update, history.
+    with django_assert_num_queries(7):
+        save_contact(contact)
+    assert contact.display_name == "Changed"
+    assert contact.history.first().before["display_name"] == "Original"
+
+
+@pytest.mark.django_db
+def test_existing_model_save_derives_changed_components_with_no_selects(
+    django_assert_num_queries,
+):
+    contact = save_contact(
+        Contact(
+            name={
+                "components": [{"kind": "given", "value": "Before"}],
+                "isOrdered": True,
+                "defaultSeparator": " ",
+            }
+        )
+    )
+    contact.name["components"][0]["value"] = "After"
+    with django_assert_num_queries(1):
+        contact.save(update_fields=["name"])
+    contact.refresh_from_db()
+    assert contact.name["full"] == contact.display_name == "After"
+
+
+@pytest.mark.django_db
+def test_full_clean_checks_uid_immutability_directly():
+    contact = save_contact(Contact(name={"full": "Stable"}))
+    identity = contact.uid
+    contact.uid = uuid4()
+    with pytest.raises(ValidationError) as error:
+        contact.full_clean()
+    assert "uid" in error.value.message_dict
+    contact.refresh_from_db()
+    assert contact.uid == identity

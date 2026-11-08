@@ -1,8 +1,0 @@
-{% extends "wagtailadmin/generic/inspect.html" %}
-{% block fields_output %}
-    {{ block.super }}
-    <dl>
-        <dt>Postal address</dt>
-        <dd id="contact-postal-address">{{ object.postal_address|default:"—"|linebreaksbr }}</dd>
-    </dl>
-{% endblock %}

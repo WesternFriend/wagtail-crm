@@ -320,7 +320,7 @@ def test_inactive_name_fields_ignore_posted_nulls(kind, fields):
     )
 
 
-def test_person_known_parts_survive_unchanged_organization_transition():
+def test_person_to_organization_keeps_components_only_in_history():
     contact = save_contact(
         Contact(
             name={
@@ -343,8 +343,9 @@ def test_person_known_parts_survive_unchanged_organization_transition():
     assert form.is_valid(), form.errors
     form.save()
     contact.refresh_from_db()
-    assert contact.name == original
+    assert contact.name == {"full": "王小明"}
     assert contact.kind == "organization"
+    assert contact.history.first().before["name"] == original
 
 
 def test_new_name_fields_explain_requirements():
@@ -685,3 +686,57 @@ def test_full_only_name_null_rejected_without_any_write():
     assert contact.name == original
     assert contact.revision == revision
     assert list(contact.history.values()) == history
+
+
+@pytest.mark.parametrize("kind", ["person", "organization"])
+@pytest.mark.parametrize(
+    "invalid_name", [{"full": ""}, {"components": [{}]}, ["invalid"], {"full": None}]
+)
+def test_invalid_stored_name_opens_and_can_be_repaired(
+    client, contact_editor, invalid_name, kind
+):
+    contact = save_contact(Contact(name={"full": "Before"}, kind=kind))
+    Contact.objects.filter(pk=contact.pk).update(name=invalid_name)
+    client.force_login(contact_editor)
+    url = reverse("wagtail_crm_contacts:edit", args=[contact.pk])
+    response = client.get(url)
+    assert response.status_code == 200
+    field = "organization_name" if kind == "organization" else "full_name"
+    assert response.context["form"][field].value() == ""
+    assert "given_name" not in response.context["form"].fields
+    snapshot = (contact.revision, contact.email, list(contact.history.values()))
+    response = client.post(
+        url, payload(contact, kind=kind, **{field: "", "email": "kept@example.test"})
+    )
+    assert response.status_code == 200
+    assert response.context["form"].errors[field] == [
+        "Enter an organization name." if kind == "organization" else "Enter a name."
+    ]
+    assert response.context["form"]["email"].value() == "kept@example.test"
+    contact.refresh_from_db()
+    assert contact.name == invalid_name
+    assert (contact.revision, contact.email, list(contact.history.values())) == snapshot
+    response = client.post(url, payload(contact, kind=kind, **{field: "Repaired"}))
+    assert response.status_code == 302
+    contact.refresh_from_db()
+    assert contact.name == {"full": "Repaired"}
+    assert contact.history.first().before["name"] == invalid_name
+
+
+@pytest.mark.parametrize(
+    ("kind", "field"), [("person", "given_name"), ("organization", "organization_name")]
+)
+def test_multiline_initial_override_uses_appropriate_textarea(kind, field):
+    contact = save_contact(
+        Contact(
+            name={
+                "components": [{"kind": "given", "value": "Stored"}],
+                "isOrdered": True,
+                "defaultSeparator": " ",
+            },
+            kind=kind,
+        )
+    )
+    form = ContactForm(instance=contact, initial={field: "First\nSecond"})
+    assert form[field].value() == "First\nSecond"
+    assert isinstance(form.fields[field].widget, forms.Textarea)

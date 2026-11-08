@@ -35,6 +35,16 @@ def test_contact_profile_migration_preserves_legacy_values_and_baseline():
         apps = executor.loader.project_state(after).apps
         contact_model = apps.get_model("wagtail_crm", "Contact")
         history_model = apps.get_model("wagtail_crm", "ContactHistory")
+        assert contact_model._meta.get_field("kind").verbose_name == "contact type"
+        assert history_model._meta.verbose_name == "contact change"
+        assert (
+            dict(history_model._meta.get_field("action").choices)["baseline"]
+            == "Initial record"
+        )
+        assert (
+            dict(history_model._meta.get_field("origin").choices)["staff"]
+            == "Staff edit"
+        )
         contacts = list(contact_model.objects.order_by("pk"))
         assert {contact.pk for contact in contacts} == set(expected)
         assert len({contact.uid for contact in contacts}) == len(expected)
@@ -62,29 +72,4 @@ def test_contact_profile_migration_preserves_legacy_values_and_baseline():
             }
     finally:
         # pytest cleanup and subsequent tests must always see the current schema.
-        MigrationExecutor(connection).migrate(latest)
-
-
-@pytest.mark.django_db(transaction=True)
-def test_contact_type_label_migration_preserves_contacts_and_history():
-    from wagtail_crm.models import Contact
-    from wagtail_crm.services import save_contact
-
-    contact = save_contact(Contact(name={"full": "Pat Morgan"}))
-    expected = (contact.pk, contact.uid, contact.name, contact.kind)
-    snapshot = contact.history.get().after
-    executor = MigrationExecutor(connection)
-    latest = executor.loader.graph.leaf_nodes()
-    before = [("wagtail_crm", "0002_contact_profile")]
-    try:
-        executor.migrate(before)
-        executor = MigrationExecutor(connection)
-        executor.migrate(latest)
-        apps = executor.loader.project_state(latest).apps
-        migrated_model = apps.get_model("wagtail_crm", "Contact")
-        migrated = migrated_model.objects.get(pk=contact.pk)
-        assert migrated_model._meta.get_field("kind").verbose_name == "contact type"
-        assert (migrated.pk, migrated.uid, migrated.name, migrated.kind) == expected
-        assert migrated.history.get().after == snapshot
-    finally:
         MigrationExecutor(connection).migrate(latest)

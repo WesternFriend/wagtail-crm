@@ -1,11 +1,15 @@
 import json
+from collections.abc import Callable
 from typing import override
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import HttpRequest
 from django.shortcuts import redirect
+from django.template.defaultfilters import linebreaksbr
 from django.urls import reverse
 from django.utils.functional import cached_property
+from django.views.generic.edit import FormMixin
 from wagtail.admin import messages
 from wagtail.admin.ui.tables import Column, DateColumn, UserColumn
 from wagtail.admin.views.generic.history import HistoryView
@@ -18,12 +22,15 @@ from wagtail.admin.views.generic.models import (
 from wagtail.admin.viewsets.model import ModelViewSet
 from wagtail.log_actions import log
 
-from wagtail_crm.forms import ContactForm
+from wagtail_crm.forms import ContactDeleteForm, ContactForm
 from wagtail_crm.models import Contact
 from wagtail_crm.services import delete_contact
 
 
-class ContactCreateView(CreateView):
+class ContactFormViewMixin(FormMixin):
+    request: HttpRequest
+    get_error_message: Callable[[], str]
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["actor"] = self.request.user
@@ -39,40 +46,51 @@ class ContactCreateView(CreateView):
             return self.form_invalid(form)
 
 
-class ContactEditView(EditView):
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["actor"] = self.request.user
-        return kwargs
+class ContactCreateView(ContactFormViewMixin, CreateView):
+    pass
 
-    def form_valid(self, form):
-        try:
-            return super().form_valid(form)
-        except ValidationError as exc:
-            form.add_error(None, exc.messages)
-            self.produced_error_message = self.get_error_message()
-            self.produced_error_code = "validation_error"
-            return self.form_invalid(form)
+
+class ContactEditView(ContactFormViewMixin, EditView):
+    pass
 
 
 class ContactDeleteView(DeleteView):
+    form_class = ContactDeleteForm
+    template_name = "wagtail_crm/contacts/confirm_delete.html"
+
+    def get_initial(self):
+        return super().get_initial() | {"expected_revision": self.object.revision}
+
     def delete_action(self):
         with transaction.atomic():
             log(instance=self.object, action="wagtail.delete")
-            delete_contact(self.object, actor=self.request.user)
+            delete_contact(
+                self.object,
+                actor=self.request.user,
+                expected_revision=self.expected_revision,
+            )
 
     def form_valid(self, form):
+        self.expected_revision = form.cleaned_data["expected_revision"]
         try:
             return super().form_valid(form)
         except ValidationError as exc:
             messages.error(self.request, " ".join(exc.messages))
-            return redirect(self.get_success_url())
+            return redirect(self.get_delete_url())
 
 
 class ContactInspectView(InspectView):
     permission_required = "view"
     any_permission_required = None
-    template_name = "wagtail_crm/contacts/inspect.html"
+
+    def get_field_display_value(self, field_name, field):
+        if field_name == "postal_address":
+            return (
+                linebreaksbr(self.object.postal_address)
+                if self.object.postal_address
+                else "—"
+            )
+        return super().get_field_display_value(field_name, field)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -113,11 +131,7 @@ class ContactChangesColumn(Column):
                         ),
                     }
                 )
-        context["action_label"] = (
-            "Initial record"
-            if instance.action == "baseline"
-            else instance.action.capitalize()
-        )
+        context["action_label"] = instance.get_action_display()
         context["changes"] = changes
         context["structure_changed"] = before.get("name") != after.get(
             "name"
@@ -147,7 +161,7 @@ class ContactHistoryView(HistoryView):
                 blank_display_name="System or unavailable account",
             ),
             DateColumn("occurred_at", label="Date"),
-            Column("origin", label="Origin"),
+            Column("origin", label="Origin", accessor="get_origin_display"),
         ]
 
     def get_base_queryset(self):
@@ -184,21 +198,12 @@ class ContactViewSet(ModelViewSet):
     add_to_admin_menu = True
     url_prefix = "crm/contacts"
     url_namespace = "wagtail_crm_contacts"
-    form_fields = (
-        "kind",
-        "given_name",
-        "surname",
-        "full_name",
-        "organization_name",
-        "email",
-        "postal_address",
-    )
     list_display = ("display_name", "kind", "email")
     list_filter = ("kind",)
     search_fields = ("display_name", "email")
     inspect_view_enabled = True
     inspect_view_class = ContactInspectView
-    inspect_view_fields = ("display_name", "kind", "email")
+    inspect_view_fields = ("display_name", "kind", "email", "postal_address")
     history_view_class = ContactHistoryView
     add_view_class = ContactCreateView
     edit_view_class = ContactEditView
