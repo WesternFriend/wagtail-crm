@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local CRM runtime data and browser artifacts
+.data/
+.DS_Store
+.env.*
+!.env.example
+playwright-report/
+test-results/
+screenshots/
+
+# Personal BMad configuration
+_bmad/config.user.toml

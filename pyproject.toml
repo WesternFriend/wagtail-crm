@@ -1,0 +1,104 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wagtail-crm"
+version = "0.0.1"
+description = "A nonprofit CRM app for Django and Wagtail."
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = [
+    "Django>=5.2,<5.3",
+    "wagtail>=7.4,<7.5",
+    "dj-database-url>=2.3,<4",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2,<4"]
+
+[dependency-groups]
+dev = [
+    "django-stubs[compatible-mypy]>=5.2,<5.3",
+    "django-upgrade>=1.33,<2",
+    "mypy>=1.15,<2",
+    "playwright>=1.51,<2",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "pytest-django>=4.11,<5",
+    "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wagtail_crm"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "devsite.settings"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-m 'not browser'"
+markers = ["browser: real Chromium checks against Django's static live server"]
+
+[tool.ruff]
+target-version = "py312"
+extend-exclude = ["**/migrations", ".agents", ".claude", "_bmad"]
+
+[tool.ruff.lint]
+# Keep rule families explicit so dependency upgrades do not enable unrelated checks.
+# This follows Western Friend's broad policy, with pytest checks enabled here.
+select = [
+    "A", "ARG", "ASYNC", "B", "BLE", "C4", "C90", "DJ", "DTZ", "E", "EM",
+    "ERA", "EXE", "F", "FBT", "FLY", "FURB", "G", "I", "ICN", "INP", "INT",
+    "ISC", "LOG", "N", "PERF", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET",
+    "RSE", "RUF", "S", "SIM", "SLF", "SLOT", "T10", "T20", "TC", "TID", "TRY",
+    "UP", "W", "YTT",
+]
+ignore = [
+    "ARG001",  # Framework entry points and pytest fixtures may have unused arguments.
+    "ARG002",  # Framework overrides retain their required signatures.
+    "E501",    # Ruff's formatter owns line wrapping.
+    "PLC0415", # Django imports may be deferred to avoid app-loading cycles.
+    "RUF005",  # Wagtail panels commonly extend lists with +.
+    "RUF012",  # Django Meta and Wagtail configuration use class-level lists.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "PLR0915", # End-to-end scenarios can have multiple visible steps.
+    "PLR2004", # Tests assert concrete status codes and expected counts.
+    "S101",    # pytest assertions belong in tests, not application invariants.
+    "S105",    # Synthetic test credentials are not production secrets.
+    "S106",
+    "SLF001",  # Tests can inspect framework internals where needed.
+]
+
+[tool.ruff.lint.flake8-self]
+extend-ignore-names = ["_meta"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.mypy]
+files = ["src/wagtail_crm", "devsite"]
+plugins = ["mypy_django_plugin.main"]
+exclude = ["/migrations/"]
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = ["wagtail.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "devsite.settings"
+
+[tool.coverage.run]
+branch = true
+source = ["wagtail_crm", "devsite"]
+omit = ["*/migrations/*", "devsite/wsgi.py"]
+
+[tool.coverage.report]
+show_missing = true
