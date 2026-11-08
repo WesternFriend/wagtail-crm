@@ -1,6 +1,6 @@
 # Minimum operational release — acceptance criteria
 
-Status: proposed refinement, 2026-11-08. Derived from the approved brief, interview and supplied acceptance review. Not stakeholder approval, verified behavior, or a claim that the current Contacts scaffold implements this workflow. Existing FR identifiers remain stable; FR-20–22 add import recovery, explicit reconciliation and issuance recovery; FR-23 adds standards-based common models at Brylie's request, with standards selection still open.
+Status: proposed refinement, 2026-11-08. Derived from the approved brief, interview and supplied acceptance review. Not stakeholder approval, verified behavior, or a claim that the current Contacts scaffold implements this workflow. Existing FR identifiers remain stable; FR-20–22 add import recovery, explicit reconciliation and issuance recovery; FR-23 adds standards-based common models at Brylie's request, with the standards division and bounded first contact profile recorded in the contact architecture spine. Broader interoperability and operational acceptance remain open.
 
 ## Acceptance evidence contract
 
@@ -68,6 +68,29 @@ All amounts here are synthetic USD unless stated. Numerical allocations are fixt
 
 | AC-18 (FR-23): Synthetic people and organizations, international names/addresses, multiple contact details and incomplete records; representative PayPal mapping | Selected standards/versions/profile and justified departures are documented. Import, storage and portable export preserve supported meaning and relationships; original source evidence remains traceable. Unsupported values stay visible, with no silent truncation, invented required values, identity merging or source-specific core conventions. | Architecture decision, authoritative standard references, field/relationship mappings, independent expected round-trip records, validation and dependency/license review; Brylie, with staff review of correspondence behavior |
 
+## Contact-profile refinement for AC-18
+
+Proposed additional cases: a mononym; an unstructured full name containing spaces; explicitly confirmed surname-first ordering; multiword given-name and surname components; repeated surname components; non-Latin text; two distinct contacts sharing an email; and existing scaffold contacts with unknown structure. Preserve known structure and supplied full names without inventing missing components or preferences. Verify the supported profile through import/storage/export; distinguish semantic preservation from byte-for-byte source preservation. Define expected mapping losses and unsupported cases before accepting interoperability claims. Additional correspondence-name controls require demonstrated workflow need.
+
+The bounded contact profile and verification results are recorded in [FIRST-CONTACT-PR.md](../../architecture/architecture-wagtail-crm-2026-11-08/FIRST-CONTACT-PR.md). Pure profile round-trips are tested; no source import, broad export, financial policy or stakeholder authority is established by those tests. The agreed standards division is recorded in `addendum.md`.
+
+The following cases capture Brylie's agreed identity and name behavior. The bounded contact increment verifies name preservation, component rendering/history, migration, incomplete contact details and correspondence editing. Source/account mappings, attribution, imported evidence, delivery readiness and issued snapshots remain later work. Exact supported components and rendering rules are documented in the contact architecture spine; passing contact tests does not accept those later capabilities.
+
+| Case | Input/action | Expected result |
+| --- | --- | --- |
+| AC-18-I01 | Staff creates a contact with incomplete details | Contact is valid under the minimal identity profile; missing correspondence information remains visible. Creation alone establishes neither payment attribution nor donor/payer/subscriber/recipient roles. |
+| AC-18-I02 | Same external identifier appears in different source accounts; confirmed mapping receives conflicting new evidence | Mapping reuse stays inside documented source/account scope. Do not reuse solely on matching identifier text across accounts, overwrite a confirmed mapping, or reassign payments silently; conflict requires review. |
+| AC-18-N01 | Change a confirmed component or explicit ordering supported by the selected profile | Canonical full representation regenerates consistently; no second independent name edit is required or accepted. Known multiword components remain intact. |
+| AC-18-N02 | Change an unstructured full name | Maintain the supplied full name without creating components or inferring ordering, including mononyms and non-Latin text. |
+| AC-18-N03 | Previously unknown name structure becomes known | Preserve the supplied text and provenance; do not treat automatic splitting as confirmation. Supported structured information is retained without requiring staff to maintain a duplicate full name or operate a naming-mode control. |
+| AC-18-N04 | Edit a name or change its supported internal representation | Preserve previous values, known components/ordering and provenance in history. No silent information loss or inconsistent editable representations; no mode-switch workflow is required. |
+| AC-18-N05 | Staff enters or corrects a name during routine work | Enter the name once. No additional correspondence-name copies, automatic prompts or configuration are required unless the first workflow has established their necessity. |
+| AC-18-N06 | Change names after issuing an acknowledgment | Current values and prior values remain traceable to their provenance. The issued name snapshot and artifact remain unchanged; existing correction/revision rules apply if a new document is required. |
+| AC-18-N07 | Migrate existing scaffold Contacts | Preserve every display name as an unstructured full name; do not invent components, ordering, correspondence preferences or transaction attribution. Preserve contact identifiers and existing relationships. |
+| AC-18-C01 | Create a contact with no email; import additional payer email evidence | Contact remains valid. Support one optional correspondence email, retaining other imported addresses as evidence. Confirming correspondence does not establish donor attribution; multiple-email management is not required initially. |
+| AC-18-C02 | Record one international postal correspondence address or leave it incomplete | No mandatory U.S.-specific fields; contact remains valid. Missing details affect readiness only when postal delivery is required. Multiple and seasonal address management is deferred. |
+| AC-18-C03 | Review a contact before the Editor has confirmed delivery practice | Keep channel/process unresolved. Do not infer postal/email delivery or introduce required preference/routing controls. PDFs, external dispatch and actual-dispatch records remain the delivery direction. |
+
 ## Decisions required before accepting affected increments
 
 These are open items, not assigned authority. Brylie's next coordination action is to request stakeholder confirmation and replace role placeholders with named owners and evidence references.
@@ -76,6 +99,7 @@ These are open items, not assigned authority. Brylie's next coordination action 
 | --- | --- | --- |
 | Named business, coverage, dispute, finance, issue and closure authorities | Business owner with Editor/bookkeeper; confirm names and permission/approval boundaries | Before accepting authority-dependent operational gates |
 | Common-model standards, versions, supported profile and libraries | Brylie; compare established standards against representative records, document selection/mappings/departures and review dependency licenses | Before implementing or materially extending common models; AC-18 cannot pass without a recorded selection |
+| Letter addressee and greeting needs | Editor with Brylie; inspect approved letter and real workflow, using the recorded name and approved template where adequate | Before letter behavior acceptance; introduce per-contact controls only if demonstrated needs justify them |
 | Exact period, sources, accounts, date basis and offline coverage | Editor/bookkeeper; inspect exports and confirm scope | Before financial dataset and coverage acceptance |
 | Duplicate keys, rejected rows, interruption boundaries | Brylie plus source reviewer; inspect source semantics and specify retry/disposition examples | Before import acceptance |
 | Historical policies, zero/blank treatment, refunds and material-change classification | Finance with Editor; approve examples/effective versions and escalation boundaries | Before financial and approval-invalidation acceptance |

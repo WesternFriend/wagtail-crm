@@ -1,5 +1,7 @@
 # Architecture: first vertical slice
 
+For implemented contact semantics and fields, use the [accepted contact architecture spine](../_bmad-output/planning-artifacts/architecture/architecture-wagtail-crm-2026-11-08/ARCHITECTURE-SPINE.md). It supersedes contact-shape proposals here. Financial and deployment sections below remain proposals.
+
 Status: proposed implementation design. Updated: 2026-11-08.
 
 The [product requirements](product-requirements.md) define behavior. This document proposes a small design for implementing that behavior; class names and file layout may change as the first real export is inspected.

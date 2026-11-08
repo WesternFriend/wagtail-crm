@@ -42,7 +42,7 @@ Exit evidence: the Editor can trace every letter line back to source evidence an
 
 ## 4. Complete distribution and validate the workflow
 
-Implement the agreed distribution path. The proposed minimal option provides PDFs and manifests, plus staff-recorded postal or external email dispatch/failure. In-app email requires explicit scope, credentials, retry behavior, and tests that prevent unintended or duplicate sends.
+Implement the agreed distribution path. Downloadable PDFs and manifests, plus staff-recorded postal or external email dispatch/failure, are sufficient for the first cycle. The Editor may manually email PDFs through existing tools; exact delivery practice still needs confirmation. Downloading a PDF does not record dispatch. Application email sending is outside the first cycle; a later enhancement would require explicit scope, credentials, retry behavior, and tests that prevent unintended or duplicate sends.
 
 Run the complete workflow with synthetic data and the Editor. Then validate a restricted real-data pilot against the existing financial records and approved letter policy. Document exceptions and resolve discrepancies before final issuance.
 
@@ -60,7 +60,7 @@ Exit evidence: the approved deployment and tested controls can support the first
 
 - Additional payment processors or structured offline-gift imports driven by actual source coverage needs.
 - Read-only PayPal synchronization, followed by narrowly scoped website integration if useful.
-- In-app delivery, if external distribution proves insufficient.
+- Email issued PDFs directly from the CRM to save the Editor a manual step, after validating the actual delivery workflow. Downloadable PDFs and manual external email suffice for the first cycle.
 - Additional contact relationships, activities, fundraising views, and fund allocations.
 - An installable core package with a thin Wagtail integration once another installation validates the interfaces.
 
