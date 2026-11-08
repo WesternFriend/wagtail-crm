@@ -2,7 +2,7 @@
 
 - Build only for data that exists or that code in the same PR produces. Hypothetical formats and future importers do not justify today's complexity.
 - Add a converter, codec, or service layer only when application code in the same PR calls it. Tests alone do not establish a need.
-- Try Django and Wagtail built-ins first: model viewsets, generic views, log entries, and permissions. Add custom models, views, or templates only when a named staff requirement fails with the built-in; explain that gap in the PR.
+- Use Django and Wagtail built-ins for the features they provide, including model viewsets, generic views, history, and permissions. Do not build features that duplicate, conflict with, or contradict them. Custom code must fill a named staff requirement the built-in does not meet; explain that gap in the PR without recreating the built-in feature.
 - Present ordinary, populated, task-focused Wagtail fields. Standards guide the model; staff should not assemble schema components or manage formatting rules.
 - Write acceptance criteria as staff tasks and observable results. Keep storage formats, normalization, and implementation choices out of them.
 - Every planning or code review asks what can be removed as well as what is missing. New rules need a demonstrated scenario, not a hypothetical one.

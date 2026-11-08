@@ -1,17 +1,9 @@
-# Planning simplicity review gate
+# Simplicity gate
 
-Approved direction: 2026-11-08. This replaces the former profile review; that proposal and its findings remain in Git history.
+Apply the simplicity rules in the root [AGENTS.md](../../../../../AGENTS.md) to every planning review. Check each proposal:
 
-Before accepting a slice, check:
-
-| Question | Required evidence |
-| --- | --- |
-| What can we remove? | Remove machinery that does not serve a current staff task. |
-| Which real data or caller needs each capability? | Existing records or application code in the same PR; tests alone are insufficient. |
-| Has a framework built-in been tried? | Prefer Django/Wagtail model fields, forms, viewsets, actions, permissions and logs. Custom code names the requirement the built-in fails. |
-| Do criteria describe staff outcomes? | Observable tasks and results, without storage formats, separators or byte-preservation rules. |
-| Is a new rule supported by a real scenario? | No hypothetical formats, importers, generic infrastructure or speculative edge cases. |
-| Is this one reviewable concern? | Separate framework upgrades from features where practical. |
-| Is the UI ordinary and usable? | Populated task-focused fields and a personal running-app walkthrough. |
-
-Follow root AGENTS.md for shared guardrails and docs/development.md for verification. Contacts uses the six approved AC-18 tasks, Family name, stock Wagtail history, a fresh alpha schema, no migration baseline and deferred concurrent-edit protection. Source imports, export mappings and finance are later work.
+- Which existing data or production caller needs this? Test fixtures alone are not evidence of need.
+- What can be removed? Reject speculative codecs, shared infrastructure and edge-case machinery until a real scenario requires them.
+- Is each acceptance criterion a staff task with a visible result? Storage formats and normalization stay out.
+- Does it duplicate, conflict with or contradict a Django or Wagtail built-in? Use the built-in. Custom code needs a named requirement the built-in fails, stated in the PR.
+- Does it mix concerns, such as a dependency upgrade with feature work? Split it where practical.
