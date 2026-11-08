@@ -4,7 +4,7 @@ An open-source nonprofit CRM built with Django and Wagtail, starting with paymen
 
 ## Status
 
-Development scaffold. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, a permission-controlled Contacts screen, and automated checks. The payment importer, financial controls, reporting dashboards, and letter generation are still planned. Production authentication hardening and deployment have not been completed.
+Contact-management foundation. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, simple name/email/postal editing, private change history, and permission-controlled views. Contact names and internal interchange helpers follow a bounded JSContact profile. The payment importer, financial controls, reporting dashboards, and letter generation are still planned. Production authentication hardening and deployment have not been completed.
 
 ## Run locally
 

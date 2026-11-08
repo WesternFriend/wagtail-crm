@@ -3,6 +3,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
 from wagtail_crm.models import Contact
+from wagtail_crm.services import save_contact
 
 
 class Command(BaseCommand):
@@ -23,11 +24,13 @@ class Command(BaseCommand):
             ),
         ]
         for name, kind, email in contacts:
-            Contact.objects.get_or_create(
-                display_name=name,
-                kind=kind,
-                email=email,
-            )
+            if not Contact.objects.filter(
+                display_name=name, kind=kind, email=email
+            ).exists():
+                save_contact(
+                    Contact(name={"full": name}, kind=kind, email=email),
+                    origin="demo",
+                )
 
         editors, _ = Group.objects.get_or_create(name="CRM Editors")
         editors.permissions.add(
@@ -40,5 +43,5 @@ class Command(BaseCommand):
             self.style.SUCCESS("Synthetic contacts and CRM Editors group are ready.")
         )
         self.stdout.write(
-            "Create your local login with: uv run python manage.py createsuperuser"
+            "Create your local login with: mise exec -- uv run --locked python manage.py createsuperuser"
         )

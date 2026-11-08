@@ -16,7 +16,9 @@ Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs
 | `mise.toml` | Tool versions and shared setup, quality, test, and development tasks |
 | `.github/workflows/checks.yml` | Code quality, Django coverage, and Chromium CI jobs |
 
-The current Contact model is deliberately small: a display name, person/organization type, and optional email. Contacts are independent of login accounts, and shared email addresses do not automatically merge them. Financial models and the PayPal adapter are not implemented yet.
+Contacts have an independent stable identifier, a person/organization type, one name, one optional email, and one optional multiline postal address. Staff type a name normally; no name modes, separator controls or raw JSON are exposed. Internally, the bounded JSContact profile can preserve confirmed name components and render their full name. An unchanged name retains that structure; a newly supplied name retains previous structure in private change history. Structured postal address editing is deferred.
+
+The inspect screen shows change history to users with contact-view permission. Supported create/edit/delete operations record private snapshots atomically, and history survives contact deletion. Existing Contacts migrate with their original PKs, exact names, kinds and email values; no name components, correspondence verification or donor attribution are inferred. Contacts remain independent of login accounts, and shared emails do not merge them. Financial models, provider imports, broad conversion tools and email sending remain unimplemented.
 
 ## First run
 
