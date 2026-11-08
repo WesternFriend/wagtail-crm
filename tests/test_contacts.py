@@ -283,7 +283,7 @@ def test_correspondence_only_edit_records_exact_previous_values(client, contact_
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
         {
-            "given_name": "Example",
+            "full_name": "Example",
             "kind": "person",
             "email": "new@example.test",
             "postal_address": "New\n住所",
@@ -309,7 +309,7 @@ def test_stale_form_preserves_newer_contact_and_shows_entered_work(
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
         {
-            "given_name": "Attempted edit",
+            "full_name": "Attempted edit",
             "kind": "person",
             "email": "",
             "expected_revision": original_revision,
@@ -317,7 +317,7 @@ def test_stale_form_preserves_newer_contact_and_shows_entered_work(
     )
     assert response.status_code == 200
     assert response.context["form"].non_field_errors()
-    assert response.context["form"]["given_name"].value() == "Attempted edit"
+    assert response.context["form"]["full_name"].value() == "Attempted edit"
     contact.refresh_from_db()
     assert contact.display_name == "Example"
     assert contact.email == "newer@example.test"
@@ -329,7 +329,7 @@ def test_edit_requires_its_hidden_revision(client, contact_editor):
     client.force_login(contact_editor)
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
-        {"given_name": "Changed", "kind": "person", "email": ""},
+        {"full_name": "Changed", "kind": "person", "email": ""},
     )
     assert response.status_code == 200
     assert response.context["form"].errors["expected_revision"]
@@ -656,3 +656,31 @@ def test_history_actor_profile_queries_remain_bounded(
     # One joined history query, plus at most one lookup for the current staff user.
     assert len(profile_queries) <= 2
     assert response.content.decode().count("actor-") == 8
+
+
+def test_inspect_uses_one_native_history_link(client, contact_editor):
+    contact = save_contact(Contact(name={"full": "Jordan Sample"}))
+    client.force_login(contact_editor)
+    response = client.get(reverse("wagtail_crm_contacts:inspect", args=[contact.pk]))
+    url = reverse("wagtail_crm_contacts:history", args=[contact.pk])
+    assert response.content.decode().count(f'href="{url}"') == 1
+
+
+@pytest.mark.parametrize("endpoint", ["history", "history_results"])
+def test_creation_history_omits_empty_optional_changes(
+    client, contact_editor, endpoint
+):
+    import re
+
+    contact = save_contact(Contact(name={"full": "Jordan Sample"}))
+    client.force_login(contact_editor)
+    response = client.get(
+        reverse(f"wagtail_crm_contacts:{endpoint}", args=[contact.pk])
+    )
+    html = response.content.decode()
+    summary = re.sub(r"<details>.*?</details>", "", html, flags=re.DOTALL)
+    assert "After: Jordan Sample" in summary
+    assert "<dt>Email</dt>" not in summary
+    assert "<dt>Postal address</dt>" not in summary
+    assert "&quot;email&quot;: &quot;&quot;" in html
+    assert "&quot;postal_address&quot;: &quot;&quot;" in html

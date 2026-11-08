@@ -1,7 +1,10 @@
+from typing import Any
+
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 
+from wagtail_crm.contact_profile import render_name
 from wagtail_crm.models import Contact
 from wagtail_crm.services import save_contact
 
@@ -14,21 +17,43 @@ class Command(BaseCommand):
             message = "Demo seeding is available only with DEBUG enabled."
             raise CommandError(message)
 
-        contacts = [
-            ("Alex Example", Contact.Kind.PERSON, "alex@example.invalid"),
-            ("Jordan Sample", Contact.Kind.PERSON, "jordan@example.invalid"),
+        contacts: list[tuple[dict[str, Any], str, str]] = [
             (
-                "Example Friends Meeting",
+                {
+                    "components": [
+                        {"kind": "given", "value": "Alex"},
+                        {"kind": "surname", "value": "Example"},
+                    ],
+                    "isOrdered": True,
+                    "defaultSeparator": " ",
+                },
+                Contact.Kind.PERSON,
+                "alex@example.invalid",
+            ),
+            (
+                {
+                    "components": [
+                        {"kind": "given", "value": "Jordan"},
+                        {"kind": "surname", "value": "Sample"},
+                    ],
+                    "isOrdered": True,
+                    "defaultSeparator": " ",
+                },
+                Contact.Kind.PERSON,
+                "jordan@example.invalid",
+            ),
+            (
+                {"full": "Example Friends Meeting"},
                 Contact.Kind.ORGANIZATION,
                 "clerk@example.invalid",
             ),
         ]
         for name, kind, email in contacts:
             if not Contact.objects.filter(
-                display_name=name, kind=kind, email=email
+                display_name=render_name(name), kind=kind, email=email
             ).exists():
                 save_contact(
-                    Contact(name={"full": name}, kind=kind, email=email),
+                    Contact(name=name, kind=kind, email=email),
                     origin="demo",
                 )
 

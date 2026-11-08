@@ -27,3 +27,25 @@ def test_demo_seed_is_disabled_outside_debug(settings):
     with pytest.raises(CommandError, match="only with DEBUG"):
         call_command("seed_demo")
     assert not Contact.objects.exists()
+
+
+def test_new_demo_people_have_recorded_parts_and_existing_names_are_not_rewritten(
+    settings,
+):
+    from wagtail_crm.forms import ContactForm
+    from wagtail_crm.services import save_contact
+
+    settings.DEBUG = True
+    legacy = save_contact(
+        Contact(name={"full": "Alex Example"}, email="alex@example.invalid"),
+        origin="demo",
+    )
+    call_command("seed_demo", verbosity=0)
+    legacy.refresh_from_db()
+    assert legacy.name == {"full": "Alex Example"}
+    assert legacy.history.count() == 1
+    jordan = Contact.objects.get(email="jordan@example.invalid")
+    form = ContactForm(instance=jordan)
+    assert form["given_name"].value() == "Jordan"
+    assert form["surname"].value() == "Sample"
+    assert "full_name" not in form.fields

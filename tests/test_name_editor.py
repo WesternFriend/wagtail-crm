@@ -1,8 +1,10 @@
 """Simple staff fields preserve names beyond the editor's supported scope."""
 
 from copy import deepcopy
+from itertools import pairwise
 
 import pytest
+from django import forms
 from django.urls import reverse
 
 from wagtail_crm.forms import ContactForm
@@ -38,6 +40,33 @@ def test_new_person_uses_known_parts_without_parsing(given, surname, full):
         for kind, value in (("given", given), ("surname", surname))
         if value
     ]
+
+
+@pytest.mark.parametrize("original_group", ["given", "surname"])
+def test_single_name_can_move_between_known_fields(original_group):
+    contact = save_contact(
+        Contact(
+            name={
+                "components": [{"kind": original_group, "value": "Original"}],
+                "isOrdered": True,
+                "defaultSeparator": " ",
+            }
+        )
+    )
+    other_field = "surname" if original_group == "given" else "given_name"
+    form = ContactForm(
+        instance=contact, data=payload(contact, **{other_field: "Updated"})
+    )
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.display_name == "Updated"
+    assert contact.name["components"] == [
+        {
+            "kind": "surname" if original_group == "given" else "given",
+            "value": "Updated",
+        }
+    ]
+    assert contact.history.first().before["display_name"] == "Original"
 
 
 def test_blank_new_name_preserves_entered_correspondence(client, contact_editor):
@@ -105,12 +134,12 @@ def test_existing_names_survive_correspondence_edits_exactly(
     form = client.get(url).context["form"]
     data = payload(
         contact,
-        given_name=form["given_name"].value() or "",
-        surname=form["surname"].value() or "",
+        **{field: form[field].value() or "" for field in form.person_name_fields},
         email="new@example.test",
     )
     if not form.original_parts:
-        assert "Current name:" in str(form.fields["given_name"].help_text)
+        assert form["full_name"].value() == contact.display_name
+        assert "given_name" not in form.fields
     assert client.post(url, data).status_code == 302
     contact.refresh_from_db()
     assert contact.name == original
@@ -153,9 +182,7 @@ def test_simple_known_parts_keep_order_and_separators_when_corrected(
 
 def test_replacement_retains_complex_name_in_history():
     contact = save_contact(Contact(name={"full": "王小明"}))
-    form = ContactForm(
-        instance=contact, data=payload(contact, given_name="大明", surname="王")
-    )
+    form = ContactForm(instance=contact, data=payload(contact, full_name="大明 王"))
     assert form.is_valid(), form.errors
     form.save()
     assert contact.display_name == "大明 王"
@@ -207,16 +234,23 @@ def test_removing_a_known_component_is_a_recorded_replacement():
 
 
 @pytest.mark.parametrize("line_break", ["\r", "\n", "\r\n"])
-def test_organization_multiline_name_remains_recorded_context(line_break):
+def test_organization_multiline_name_is_populated_and_preserved(line_break):
     original = {"full": f"Example <Meeting>{line_break}Society"}
     contact = save_contact(Contact(kind="organization", name=original))
     displayed = ContactForm(instance=contact)
-    assert not displayed["organization_name"].value()
-    assert "Current name:" in str(displayed.fields["organization_name"].help_text)
-    assert "&lt;Meeting&gt;" in str(displayed.fields["organization_name"].help_text)
+    assert displayed["organization_name"].value() == original["full"]
+    assert "&lt;Meeting&gt;" in str(displayed["organization_name"])
+    assert isinstance(displayed.fields["organization_name"].widget, forms.Textarea)
     form = ContactForm(
         instance=contact,
-        data=payload(contact, kind="organization", email="new@example.test"),
+        data=payload(
+            contact,
+            kind="organization",
+            organization_name=original["full"]
+            .replace("\r\n", "\n")
+            .replace("\r", "\n"),
+            email="new@example.test",
+        ),
     )
     assert form.is_valid(), form.errors
     form.save()
@@ -246,19 +280,14 @@ def test_kind_transitions_preserve_unsplit_recorded_name(
     original = {"full": full}
     contact = save_contact(Contact(kind=original_kind, name=original))
     displayed = ContactForm(instance=contact)
-    assert not displayed["given_name"].value()
-    assert not displayed["surname"].value()
-    assert "Current name:" in str(displayed.fields["given_name"].help_text)
-    assert "&lt;Name&gt;" in str(displayed.fields["given_name"].help_text)
-    organization_name = displayed["organization_name"].value() or ""
-    if "\n" in full:
-        assert not organization_name
-        assert "Current name:" in str(displayed.fields["organization_name"].help_text)
-    else:
-        assert organization_name == full
+    assert displayed["full_name"].value() == full
+    assert "given_name" not in displayed.fields
+    assert displayed["organization_name"].value() == full
     form = ContactForm(
         instance=contact,
-        data=payload(contact, kind=selected_kind, organization_name=organization_name),
+        data=payload(
+            contact, kind=selected_kind, organization_name=full, full_name=full
+        ),
     )
     assert form.is_valid(), form.errors
     form.save()
@@ -323,16 +352,336 @@ def test_new_name_fields_explain_requirements():
     assert (
         form.fields["given_name"].help_text == "Enter a given name, surname, or both."
     )
-    assert form.fields["organization_name"].help_text == "Enter the organization name."
+    assert not form.fields["organization_name"].help_text
 
 
 @pytest.mark.parametrize("kind", ["person", "organization"])
-def test_current_recorded_name_is_emphasized_and_escaped(kind):
+def test_populated_name_is_escaped_without_preservation_controls(kind):
     name = {"full": "Pat <Morgan>\nSociety"}
     contact = save_contact(Contact(kind=kind, name=name))
     form = ContactForm(instance=contact)
-    field = "organization_name" if kind == "organization" else "given_name"
-    help_text = str(form.fields[field].help_text)
-    assert "<strong>Current name: Pat &lt;Morgan&gt;\nSociety</strong>" in help_text
-    assert "blank to keep it." in help_text
+    field = "organization_name" if kind == "organization" else "full_name"
+    assert form[field].value() == name["full"]
+    html = str(form.as_p())
+    assert "&lt;Morgan&gt;" in html
+    assert "Current name:" not in html
+    assert "blank to keep" not in html
     assert contact.name == name
+
+
+@pytest.mark.parametrize(
+    ("kind", "field"), [("person", "full_name"), ("organization", "organization_name")]
+)
+def test_empty_existing_name_errors_retain_other_work(
+    client, contact_editor, kind, field
+):
+    contact = save_contact(Contact(kind=kind, name={"full": "Original"}))
+    client.force_login(contact_editor)
+    response = client.post(
+        reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
+        payload(
+            contact,
+            kind=kind,
+            **{field: "  "},
+            email="retained@example.test",
+            postal_address="Retained address",
+        ),
+    )
+    assert response.status_code == 200
+    form = response.context["form"]
+    assert form.errors[field]
+    assert form["email"].value() == "retained@example.test"
+    assert form["postal_address"].value() == "Retained address"
+    contact.refresh_from_db()
+    assert contact.name == {"full": "Original"}
+    assert contact.history.count() == 1
+
+
+@pytest.mark.parametrize("line_break", ["\r", "\n", "\r\n"])
+def test_known_multiline_name_preserves_then_edits_components_with_history(line_break):
+    original = {
+        "components": [{"kind": "given", "value": f"王{line_break}小明"}],
+        "isOrdered": True,
+        "defaultSeparator": " ",
+    }
+    contact = save_contact(Contact(name=original))
+    original = deepcopy(contact.name)
+    form = ContactForm(
+        instance=contact,
+        data=payload(contact, given_name="王\n小明", email="updated@example.test"),
+    )
+    assert form.is_valid(), form.errors
+    form.save()
+    contact.refresh_from_db()
+    assert contact.name == original
+    form = ContactForm(instance=contact, data=payload(contact, given_name="王大明"))
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.name["components"] == [{"kind": "given", "value": "王大明"}]
+    assert contact.history.first().before["name"] == original
+
+
+@pytest.mark.parametrize("surname_kind", ["surname", "surname2"])
+def test_repeated_recorded_groups_are_populated_and_preserve_unedited_components(
+    surname_kind,
+):
+    contact = save_contact(
+        Contact(
+            name={
+                "components": [
+                    {"kind": "given", "value": "Mary"},
+                    {"kind": "given", "value": "Beth"},
+                    {"kind": "separator", "value": " / "},
+                    {"kind": "surname", "value": "Rivera"},
+                    {"kind": "separator", "value": "・"},
+                    {"kind": surname_kind, "value": "Barrientos"},
+                ],
+                "isOrdered": True,
+                "defaultSeparator": " ",
+            }
+        )
+    )
+    original = deepcopy(contact.name)
+    displayed = ContactForm(instance=contact)
+    assert "full_name" not in displayed.fields
+    assert displayed["given_name"].value() == "Mary Beth"
+    assert displayed["surname"].value() == "Rivera・Barrientos"
+    unchanged = ContactForm(
+        instance=contact,
+        data=payload(
+            contact,
+            given_name="Mary Beth",
+            surname="Rivera・Barrientos",
+            email="new@example.test",
+        ),
+    )
+    assert unchanged.is_valid(), unchanged.errors
+    unchanged.save()
+    contact.refresh_from_db()
+    assert contact.name == original
+    edited = ContactForm(
+        instance=contact,
+        data=payload(contact, given_name="Mary Jane", surname="Rivera・Barrientos"),
+    )
+    assert edited.is_valid(), edited.errors
+    edited.save()
+    contact.refresh_from_db()
+    assert contact.name["components"] == [
+        original["components"][0] | {"value": "Mary Jane"},
+        *original["components"][2:],
+    ]
+    assert contact.name["defaultSeparator"] == " "
+    assert contact.display_name == "Mary Jane / Rivera・Barrientos"
+    assert contact.history.first().before["name"] == original
+
+
+def test_surname2_only_is_known_surname_and_edits_keep_recorded_kind():
+    contact = save_contact(
+        Contact(
+            name={
+                "components": [{"kind": "surname2", "value": "王"}],
+                "isOrdered": True,
+                "defaultSeparator": "",
+            }
+        )
+    )
+    displayed = ContactForm(instance=contact)
+    assert displayed["surname"].value() == "王"
+    form = ContactForm(instance=contact, data=payload(contact, surname="李"))
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.name["components"] == [{"kind": "surname2", "value": "李"}]
+
+
+@pytest.mark.parametrize("original_kind", ["given", "surname", "surname2"])
+def test_adding_the_other_name_group_uses_default_given_surname_order(original_kind):
+    original_value = "Amina" if original_kind == "given" else "Rivera"
+    contact = save_contact(
+        Contact(
+            name={
+                "components": [{"kind": original_kind, "value": original_value}],
+                "isOrdered": True,
+                "defaultSeparator": " ",
+            }
+        )
+    )
+    original = deepcopy(contact.name)
+    form = ContactForm(
+        instance=contact, data=payload(contact, given_name="Amina", surname="Rivera")
+    )
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.display_name == "Amina Rivera"
+    assert {"kind": original_kind, "value": original_value} in contact.name[
+        "components"
+    ]
+    assert contact.history.first().before["name"] == original
+
+
+@pytest.mark.parametrize("structured_first", [True, False])
+def test_stale_edit_retains_submitted_representation_without_writes(
+    client, contact_editor, structured_first
+):
+    structured = {
+        "components": [{"kind": "given", "value": "Original"}],
+        "isOrdered": True,
+        "defaultSeparator": " ",
+    }
+    full = {"full": "Other stored name"}
+    contact = save_contact(Contact(name=structured if structured_first else full))
+    revision = contact.revision
+    contact.name = full if structured_first else structured
+    save_contact(contact)
+    current = deepcopy(contact.name)
+    history = list(contact.history.values())
+    client.force_login(contact_editor)
+    values = (
+        {"given_name": "Typed given", "surname": "Typed surname"}
+        if structured_first
+        else {"full_name": "Typed full"}
+    )
+    response = client.post(
+        reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
+        {
+            "kind": "person",
+            "email": "typed@example.test",
+            "expected_revision": revision,
+            **values,
+        },
+    )
+    form = response.context["form"]
+    assert "This contact changed while you were editing." in str(
+        form.non_field_errors()
+    )
+    for field, value in values.items():
+        assert form[field].value() == value
+    assert ("full_name" not in form.fields) == structured_first
+    contact.refresh_from_db()
+    assert contact.name == current
+    assert contact.revision == revision + 1
+    assert list(contact.history.values()) == history
+
+
+@pytest.mark.parametrize("separator", ["", "・", "\r\n"])
+@pytest.mark.parametrize("original_group", ["given", "surname"])
+def test_new_group_boundary_uses_space_and_preserves_existing_internal_separator(
+    separator, original_group
+):
+    parts = [
+        {"kind": original_group, "value": "A"},
+        {"kind": original_group, "value": "B"},
+    ]
+    contact = save_contact(
+        Contact(
+            name={"components": parts, "isOrdered": True, "defaultSeparator": separator}
+        )
+    )
+    original = deepcopy(contact.name)
+    old_value = f"A{separator}B"
+    values = (
+        {"given_name": old_value, "surname": "New"}
+        if original_group == "given"
+        else {"given_name": "New", "surname": old_value}
+    )
+    form = ContactForm(instance=contact, data=payload(contact, **values))
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.display_name == (
+        f"{old_value} New" if original_group == "given" else f"New {old_value}"
+    )
+    assert contact.name["defaultSeparator"] == separator
+    assert contact.name["components"] == (
+        parts
+        + [{"kind": "separator", "value": " "}, {"kind": "surname", "value": "New"}]
+        if original_group == "given"
+        else [
+            {"kind": "given", "value": "New"},
+            {"kind": "separator", "value": " "},
+            *parts,
+        ]
+    )
+    assert contact.history.first().before["name"] == original
+
+
+@pytest.mark.parametrize("surname_kind", ["surname", "surname2"])
+def test_changed_grouped_surname_preserves_given_and_boundary(surname_kind):
+    parts = [
+        {"kind": "given", "value": "Mary"},
+        {"kind": "given", "value": "Beth"},
+        {"kind": "separator", "value": " / "},
+        {"kind": "surname", "value": "Rivera"},
+        {"kind": "separator", "value": "・"},
+        {"kind": surname_kind, "value": "Barrientos"},
+    ]
+    contact = save_contact(
+        Contact(name={"components": parts, "isOrdered": True, "defaultSeparator": " "})
+    )
+    original = deepcopy(contact.name)
+    form = ContactForm(
+        instance=contact,
+        data=payload(contact, given_name="Mary Beth", surname="New surname"),
+    )
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.name["components"] == [
+        *parts[:3],
+        {"kind": "surname", "value": "New surname"},
+    ]
+    assert contact.display_name == "Mary Beth / New surname"
+    assert contact.history.first().before["name"] == original
+
+
+@pytest.mark.parametrize(
+    ("given", "surname", "expected"),
+    [
+        ("X", "S・T", "X・S・T"),
+        ("G・H", "Y", "G・Y・H"),
+        ("X", "Y", "X・Y"),
+        ("", "S・T", "S・T"),
+        ("G・H", "", "G・H"),
+    ],
+)
+def test_interleaved_group_edits_and_removals_have_valid_order(
+    given, surname, expected
+):
+    parts = [
+        {"kind": "given", "value": "G"},
+        {"kind": "separator", "value": "・"},
+        {"kind": "surname", "value": "S"},
+        {"kind": "separator", "value": "・"},
+        {"kind": "given", "value": "H"},
+        {"kind": "separator", "value": "・"},
+        {"kind": "surname2", "value": "T"},
+    ]
+    contact = save_contact(
+        Contact(name={"components": parts, "isOrdered": True, "defaultSeparator": "・"})
+    )
+    original = deepcopy(contact.name)
+    form = ContactForm(
+        instance=contact, data=payload(contact, given_name=given, surname=surname)
+    )
+    assert form.is_valid(), form.errors
+    form.save()
+    assert contact.display_name == expected
+    components = contact.name["components"]
+    assert components[0]["kind"] != "separator"
+    assert components[-1]["kind"] != "separator"
+    assert all(
+        left["kind"] != "separator" or right["kind"] != "separator"
+        for left, right in pairwise(components)
+    )
+    assert contact.history.first().before["name"] == original
+
+
+def test_full_only_name_null_rejected_without_any_write():
+    contact = save_contact(Contact(name={"full": "Original"}))
+    original = deepcopy(contact.name)
+    revision = contact.revision
+    history = list(contact.history.values())
+    form = ContactForm(instance=contact, data=payload(contact, full_name="A\x00B"))
+    assert not form.is_valid()
+    assert "Null characters are not allowed." in form.errors["full_name"]
+    contact.refresh_from_db()
+    assert contact.name == original
+    assert contact.revision == revision
+    assert list(contact.history.values()) == history

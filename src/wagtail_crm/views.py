@@ -96,7 +96,7 @@ class ContactChangesColumn(Column):
             ("postal_address", "Postal address"),
         ):
             old, new = before.get(field), after.get(field)
-            if old != new:
+            if (old or "") != (new or ""):
                 if field == "kind":
                     old = Contact.Kind(old).label if old else None
                     new = Contact.Kind(new).label if new else None
@@ -143,7 +143,7 @@ class ContactHistoryView(HistoryView):
             ContactChangesColumn("action", label="Changes"),
             UserColumn(
                 "actor",
-                label="Actor",
+                label="Changed by",
                 blank_display_name="System or unavailable account",
             ),
             DateColumn("occurred_at", label="Date"),
@@ -188,6 +188,7 @@ class ContactViewSet(ModelViewSet):
         "kind",
         "given_name",
         "surname",
+        "full_name",
         "organization_name",
         "email",
         "postal_address",

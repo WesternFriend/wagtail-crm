@@ -240,28 +240,39 @@ class TestContactBrowser(StaticLiveServerTestCase):
                 self.page.goto(
                     f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
                 )
+                if contact.kind == "organization" or "components" not in contact.name:
+                    field = (
+                        "Organization name"
+                        if contact.kind == "organization"
+                        else "Name"
+                    )
+                    name_input = self.page.get_by_label(field, exact=True)
+                    expect(name_input).to_be_visible()
+                    expect(name_input).to_have_value(
+                        contact.display_name.replace("\r\n", "\n").replace("\r", "\n")
+                    )
+                    expect(
+                        self.page.get_by_label("Given name", exact=True)
+                    ).to_have_count(0)
+                else:
+                    expect(
+                        self.page.get_by_label("Given name", exact=True)
+                    ).to_be_visible()
+                    expect(
+                        self.page.get_by_label("Surname", exact=True)
+                    ).to_be_visible()
+                    expect(self.page.get_by_label("Name", exact=True)).to_have_count(0)
                 expect(
-                    self.page.get_by_text(
-                        " ".join(contact.display_name.split()), exact=True
-                    ).first
-                ).to_be_visible()
-                if contact.display_name == "Unparsed Mary Beth van Berg":
-                    expect(
-                        self.page.get_by_text(
-                            "Current name: Unparsed Mary Beth van Berg", exact=True
-                        )
-                    ).to_be_visible()
-                    expect(
-                        self.page.get_by_text(
-                            "Leave both name fields blank to keep it.", exact=False
-                        )
-                    ).to_be_visible()
-                    if directory := os.environ.get("CRM_SCREENSHOTS_DIR"):
-                        path = Path(directory)
-                        path.mkdir(parents=True, exist_ok=True)
-                        self.page.screenshot(
-                            path=str(path / "current-name.png"), full_page=True
-                        )
+                    self.page.get_by_text("Current name:", exact=False)
+                ).to_have_count(0)
+                if contact.display_name == "Unparsed Mary Beth van Berg" and (
+                    directory := os.environ.get("CRM_SCREENSHOTS_DIR")
+                ):
+                    path = Path(directory)
+                    path.mkdir(parents=True, exist_ok=True)
+                    self.page.screenshot(
+                        path=str(path / "unstructured-name.png"), full_page=True
+                    )
                 self.page.get_by_label("Email").fill("updated@example.invalid")
                 self.page.get_by_role("button", name="Save", exact=True).click()
                 expect(
@@ -348,9 +359,9 @@ class TestContactBrowser(StaticLiveServerTestCase):
                 "link", name="Example Organization", exact=True
             ).click()
             kind.select_option("person")
-            expect(self.page.get_by_text("Current name:", exact=False)).to_be_visible()
-            expect(given).to_have_value("")
-            expect(surname).to_have_value("")
+            full_name = self.page.get_by_label("Name", exact=True)
+            expect(full_name).to_have_value("Example Organization")
+            expect(organization).to_be_hidden()
             self.page.get_by_role("button", name="Save", exact=True).click()
             self.page.get_by_role(
                 "link", name="Example Organization", exact=True
@@ -362,6 +373,137 @@ class TestContactBrowser(StaticLiveServerTestCase):
         assert contact.kind == Contact.Kind.ORGANIZATION
         assert contact.name == {"full": "Example Organization"}
         assert contact.history.count() == 3
+
+    def test_full_name_edit_and_blank_validation_preserve_history(self):
+        self.allow_contacts()
+        original = {"full": "Rivera Barrientos"}
+        contact = save_contact(Contact(name=original))
+        original = contact.name
+        with self.browser_page():
+            self.login()
+            self.page.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
+            )
+            name = self.page.get_by_label("Name", exact=True)
+            expect(name).to_have_value("Rivera Barrientos")
+            expect(self.page.get_by_label("Given name", exact=True)).to_have_count(0)
+            expect(
+                self.page.locator("[data-contact-name], [data-name-part]")
+            ).to_have_count(0)
+            name.fill("")
+            self.page.get_by_label("Email").fill("retained@example.invalid")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            expect(self.page.get_by_text("Enter a name.", exact=True)).to_be_visible()
+            expect(self.page.get_by_label("Email")).to_have_value(
+                "retained@example.invalid"
+            )
+            name.fill("王大明")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            expect(
+                self.page.get_by_role("link", name="王大明", exact=True)
+            ).to_be_visible()
+            self.page.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:history', args=[contact.pk])}"
+            )
+            row = self.page.get_by_role("table").locator("tbody > tr").first
+            expect(row.locator("dl")).to_contain_text("Rivera Barrientos")
+            expect(row.locator("dl")).to_contain_text("王大明")
+            assert row.locator("details").get_attribute("open") is None
+        contact.refresh_from_db()
+        assert contact.name == {"full": "王大明"}
+        assert contact.history.first().before["name"] == original
+
+    def test_edited_name_follows_type_until_destination_has_its_own_draft(self):
+        self.allow_contacts()
+        contacts = [
+            save_contact(
+                Contact(
+                    name={
+                        "components": [
+                            {"kind": "given", "value": "Before"},
+                            {"kind": "surname", "value": "Person"},
+                        ],
+                        "isOrdered": True,
+                        "defaultSeparator": " ",
+                    }
+                )
+            ),
+            save_contact(Contact(name={"full": "Before Full"})),
+            save_contact(
+                Contact(kind="organization", name={"full": "Before Organization"})
+            ),
+        ]
+        with self.browser_page():
+            self.login()
+            for index, contact in enumerate(contacts):
+                self.page.goto(
+                    f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
+                )
+                kind = self.page.get_by_label("Contact type")
+                source = self.page.get_by_label(
+                    "Given name"
+                    if index == 0
+                    else ("Name" if index == 1 else "Organization name"),
+                    exact=True,
+                )
+                source.fill(f"Edited {index}")
+                destination_kind = "person" if index == 2 else "organization"
+                kind.select_option(destination_kind)
+                destination = self.page.get_by_label(
+                    "Name" if index == 2 else "Organization name", exact=True
+                )
+                expect(destination).to_have_value(
+                    f"Edited {index}" + (" Person" if index == 0 else "")
+                )
+                kind.select_option(contact.kind)
+                expect(source).to_have_value(f"Edited {index}")
+                kind.select_option(destination_kind)
+                self.page.get_by_role("button", name="Save", exact=True).click()
+                expect(
+                    self.page.get_by_role(
+                        "link",
+                        name=f"Edited {index}" + (" Person" if index == 0 else ""),
+                        exact=True,
+                    )
+                ).to_be_visible()
+        for index, contact in enumerate(contacts):
+            contact.refresh_from_db()
+            assert contact.name == {
+                "full": f"Edited {index}" + (" Person" if index == 0 else "")
+            }
+            assert contact.history.first().before["display_name"].startswith("Before")
+
+    def test_multiline_name_edit_retains_work_during_invalid_email_recovery(self):
+        self.allow_contacts()
+        original = {"full": "Old\r\nName"}
+        contact = save_contact(Contact(name=original))
+        with self.browser_page():
+            self.login()
+            self.page.goto(
+                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
+            )
+            name = self.page.get_by_label("Name", exact=True)
+            assert name.evaluate("element => element.tagName") == "TEXTAREA"
+            name.fill("Typed\nNew name")
+            self.page.get_by_label("Email").fill("bad")
+            self.page.get_by_label("Postal address").fill("Other retained work")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            expect(
+                self.page.get_by_text("Enter a valid email address.")
+            ).to_be_visible()
+            expect(name).to_have_value("Typed\nNew name")
+            expect(self.page.get_by_label("Postal address")).to_have_value(
+                "Other retained work"
+            )
+            self.page.get_by_label("Email").fill("valid@example.invalid")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            expect(
+                self.page.get_by_role("link", name="Typed New name", exact=True)
+            ).to_be_visible()
+        contact.refresh_from_db()
+        assert contact.name == {"full": "Typed\r\nNew name"}
+        assert contact.postal_address == "Other retained work"
+        assert contact.history.first().before["name"] == original
 
     def test_history_pagination_and_results_show_the_selected_page(self):
         self.allow_contacts()
