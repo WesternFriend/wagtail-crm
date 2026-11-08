@@ -1,0 +1,19 @@
+# Team override: reviews may cut as well as add, and never pad. See simplicity.md.
+[workflow]
+review_guidance = ["file:{project-root}/_bmad/custom/simplicity.md"]
+
+# Replaces the shipped adversarial lens, which demanded at least ten findings.
+# A quota pushes reviewers to invent requirements; real findings only.
+[[workflow.lenses]]
+code = "adversarial"
+name = "Adversarial"
+applies_to = "any"
+when = "always"
+instruction = "Load `references/lens-adversarial.md` from the skill root and follow it, with one change: there is no minimum number of findings. Ignore its 'at least ten issues' and 're-check on zero findings' lines. Report only real problems; zero findings is a valid result. Prefer findings that remove or simplify over findings that add scope."
+
+[[workflow.lenses]]
+code = "simplicity"
+name = "Simplicity"
+applies_to = "any"
+when = "always"
+instruction = "Load `{project-root}/_bmad/custom/simplicity.md` and apply each rule to the content. Report every capability, requirement, rule, or code path with no named real need, anything that duplicates or contradicts a Django/Wagtail built-in, acceptance criteria that describe storage instead of a staff task, and content repeated across documents. For each finding, the `guard_snippet` says what to cut or replace with the built-in. Zero findings is valid. Emit findings in the canonical fields."

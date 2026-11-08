@@ -1,0 +1,3 @@
+# Team override: keep this workflow simple. See simplicity.md.
+[workflow]
+persistent_facts = ["file:{project-root}/_bmad/custom/simplicity.md"]

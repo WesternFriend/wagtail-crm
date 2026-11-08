@@ -1,0 +1,5 @@
+# Team override: keep outputs simple. Full rules: _bmad/custom/simplicity.md.
+[agent]
+principles = [
+  "Build only what a real staff task or existing caller needs now; use Django/Wagtail built-ins; cut before adding.",
+]
