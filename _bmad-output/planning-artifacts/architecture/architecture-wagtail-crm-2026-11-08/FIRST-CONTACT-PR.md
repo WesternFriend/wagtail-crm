@@ -1,63 +1,48 @@
 ---
 status: done
-baseline_commit: 5055d2f5b4518676c9093aeb3eb47121a81a17af
+baseline_commit: 236a0ea555ffb42fe525623837e9d946fe243fbb
 context: []
 ---
 
-# First contact-management PR
+# Contact-management refinement
 
-PR title: **Simplify person entry to ordinary Wagtail name fields**.
+PR title: **Clarify contact details and unify Wagtail history**.
 
-The user found the component editor confusing. This accepted scope supersedes the earlier component-row, join and naming-mode UI. Wagtail is the sole UI, including future workflows; the site root redirects to its login page. No separate frontend or new planning layer is needed.
+The user confirmed the ordinary person/organization forms through synthetic testing and requested four targeted refinements. Keep that form layout, Wagtail-only UI, optional given-name/surname fields, generated displayed names, and exact preservation of imported/unstructured names. No further naming controls or redesign.
 
-## Current increment
+## Implemented scope
 
-- Adding a person opens one ordinary Wagtail form with Given name and Surname. Neither is individually mandatory; a new person requires at least one nonblank value. Single names, multiword values and Unicode work. Generate the displayed name without duplicate entry. New names use given then surname, with a space when both are present.
-- Populate simple existing components only from their recorded meanings. Unchanged saves preserve the exact original object, including ordering and separators. Existing full names, repeated/unsupported components and other names outside the simple editor stay visible as recorded context; blank replacement fields keep them during correspondence edits. Never guess how to split text or force name reconstruction to edit email/address.
-- Explicit replacement values preserve the prior name and provenance through existing atomic history. Supported simple-component corrections retain existing formatting where representable. Richer name editing is deferred until demonstrated need.
-- Organizations keep one ordinary organization-name field. Only relevant fields and labels are visible for the selected kind. Existing names that a single-line field cannot preserve remain recorded context until explicitly replaced.
-- Remove the custom name widget/module, component templates, join controls, naming modes, generated preview and obsolete JS/CSS. A minimal Wagtail form script may toggle person/organization field visibility. Use the existing name representation and services; no migration is required.
+1. Emphasize “Current name: Pat Morgan” with a short blank-fields-preserve-it note. Escape supplied values, retain canonical names, and never split them automatically.
+2. Use the existing Wagtail History destination from edit and Inspect. Native History table/pagination shows changed fields first, preserving before/after values, actor/date/origin, structure-only and whitespace-only changes. Complete original snapshots remain in closed, keyboard-accessible disclosures with contextual accessible labels. Retain Wagtail's original audit records, without presenting a competing history. View-only users can return to Inspect and get no edit action. Both history and results require contact-view permission.
+3. Label kind as Contact type across forms/list/filter/Inspect/history while retaining underlying kind/person/organization values. The metadata-only 0003 migration records this label and proper contact-change names for native pagination. It has not been applied to the existing development database.
+4. Omit the UUID from routine Inspect fields; preserve independent UID and every stored snapshot. Avoid repeating unchanged fields in visible update summaries.
 
-## Preservation and permissions
+## Acceptance and verification
 
-Retain existing Contact PKs, stable UID, kind/email/address values, URLs, search, inspection, migration behavior, private history, stale-edit rejection and add/change/view/delete permissions. No name change establishes identity attribution, financial approval or correspondence readiness. Keep one optional email and multiline international postal address; structured postal editing remains deferred. No database mutation outside isolated tests.
+- Existing full/repeated names remain intact during correspondence edits. Current-name context and short notes are visible; no extra naming controls are introduced.
+- Edit and Inspect link to the same History URL. Changed name/type/email/address values appear in summaries; unchanged fields remain only in the complete snapshots. Created and migrated records render safely; structural/whitespace changes remain explainable. Supplied text is escaped.
+- Native pagination links and results replacement show the selected records. History queries remain bounded as rows increase. Snapshot disclosures stay closed until explicitly opened.
+- View-only staff may see history/results and return to Inspect, without edit links. No-view staff, including add-only/change-only/delete-only, are denied private history/results.
+- Existing PK, UID, names, history and Wagtail log entries survive the label migration. Existing development records and the user's stopped server remain untouched.
 
-## Representative acceptance
-
-- Given Mary Beth / van Berg, save Mary Beth van Berg; either field alone also saves. Neither has an individual required marker. Both blank for a new person show a clear error and retain correspondence input.
-- Given an existing unparsed full name or repeated components, correspondence-only saves preserve the exact stored name. Known surname-first names and supported separators are retained internally without exposing editing controls. Imported text is never parsed automatically.
-- Given a supported known component correction or an explicit replacement for an unsupported name, save the generated name and retain the original snapshot in history. Invalid input and stale edits leave stored data/history unchanged.
-- Given an organization, show its single name field. Hidden person/organization fields do not leave irrelevant labels behind. Existing multiline organization names survive unrelated browser saves exactly.
-- Given staff without CRM permissions, deny access and mutation; view-only and CSRF rules remain unchanged. All UI remains within Wagtail.
-
-## Verification
-
-Run `mise run check`, `mise run hooks`, `mise run test`, and `mise run browser`. Test ordinary inputs, optional/single names, blank validation, multiword/Unicode values, legacy/full/repeated/surname-first/custom-separator preservation, organization names, atomic history and stale edits. Browser tests start at root-to-login and cover actual visible fields, creation/editing, preservation and denial. Inspect a synthetic person-form screenshot. Build a wheel and verify migrations/inspect template/new minimal form script are included, obsolete widget assets are absent, and devsite/tests/scripts are excluded.
-
-## Supporting documents and boundaries
-
-The [contact spine](ARCHITECTURE-SPINE.md), PRD, acceptance criteria, addendum, README and development docs describe the simpler supported editing scope. Prior review evidence remains in Git history and [implementation triage](reviews/implementation-triage.md). Preserve the pre-existing uncommitted Wagtail-only PM edits.
-
-Defer elaborate name editing, structured postal editing, source importing/matching, financial models, policy review, letters/PDF generation, dispatch, direct sending, routing/preferences and broad converters. Passing this increment does not establish operational acknowledgment readiness.
+Final local results: `mise run check` and `mise run hooks` passed; **135 fast tests passed at 96% combined statement/branch coverage**; **7 Chromium scenarios passed**. Synthetic current-name and history screenshots were visually inspected. The wheel matches app source and includes the new label migration and history template, excluding devsite/tests/scripts. No local migrations were applied.
 
 ## Review Triage Log
 
-| Finding | Verdict / route | Evidence and result |
+| Finding | Verdict / route | Evidence and disposition |
 | --- | --- | --- |
-| Blind-1: recorded context follows original kind | medium / patch | Made context available across kind changes; endpoint and browser transitions preserve the name. |
-| Blind-2: multiline preservation across kinds not defined | medium / patch | Explicit kind changes retain the existing recorded name when replacement is blank; tests cover this policy. |
-| Blind-3: hidden irrelevant inputs validate | medium / patch | Bound forms disable inactive fields using the posted kind; the minimal script also disables hidden controls. Tests cover inactive nulls and active errors. |
-| Blind-4: optional person fields lack combined instruction | low / patch | Added plain help that either name or both may be supplied. |
-| Blind-5: organization requirement lacks instruction | low / patch | Added organization-name help; recorded-context help explains preservation where applicable. |
-| Blind-6: malformed unsaved name objects fail construction | low / reject | This helper reads a validated stored profile. Malformed internal model instances are outside supported form callers; no new guards or malformed-record editing workflow added. |
-| Blind-7: line-break replacements cannot reopen in simple fields | false / reject | The recorded-context fallback deliberately handles values outside single-line editing and preserves them exactly. Added browser coverage confirms no mutation. |
-| Blind-8: person newline browser coverage missing | medium / patch | Browser correspondence edits now preserve both unstructured and structured multiline person names, plus multiline organizations. |
-| Blind-9: kind-switch drafts/errors unverified | medium / patch | Browser verifies round-trip kind selection, client draft retention, relevant errors, and stored names/kinds. |
-| Blind-10: optional field markers unverified | low / patch | Browser asserts neither person input has required attributes or individual required markers. |
-| Verification-1: surname correction not exercised | medium / patch | Formatting/history regression now independently corrects given and surname, retaining exact component order and separators. |
+| Blind-1: actor profiles may cause N+1 queries | low / patch | Eager-loaded actor profiles; bounded-query regression passes. |
+| Blind-2: whitespace-only changes look identical | medium / patch | Added a concise explanation while preserving exact values in snapshots; tested. |
+| Blind-3: new English labels lack translation markers | low / reject | The confirmed first-release CRM interface is English. Broader localization is deferred to demonstrated need; this refinement makes no locale-aware CRM label claim. |
+| Blind-4: view-only history lacks return-to-contact breadcrumb | medium / patch | Added Inspect breadcrumb without an edit action; tested. |
+| Blind-5: rendered pagination/results navigation unverified | medium / patch | Chromium follows Next/Previous, verifies records and URL, and checks the selected-page results fragment. |
+| Blind-6: restricted permission combinations unverified | medium / patch | Explicit add-only/change-only/delete-only denial tests cover both endpoints. |
+| Blind-7: creation/baseline rendering unverified | medium / patch | Added complete collapsed-snapshot and meaningful-summary cases, including Initial record labeling. |
+| Blind-8: disclosures lack accessible row context | low / patch | Accessible labels include action/date/change identity; visible labels remain concise and closed by default. |
+| Verification-1: changed postal address absent from summary tests | medium / patch | Both endpoints now verify escaped multiline old/new address values outside details, with unrelated fields omitted. |
 
-The independent edge-case review reported no additional findings. All retained findings were fixed; no new scope or elaborate editor was added.
+The independent edge-case review found no additional issues. All retained findings were fixed. Visual inspection also corrected the native pagination plural and made the requested snapshot disclosures visibly actionable using Wagtail's existing button styles. No new UI system or audit platform was introduced.
 
-## Final local verification
+## Boundaries
 
-`mise run check` and `mise run hooks` passed. Fast tests: **110 passed**, with **95%** combined statement/branch coverage. Chromium: **6 passed**, including ordinary names, single names, validation, legacy preservation, organizations, kind transitions and permission denial. Synthetic person-form screenshot visually checked: only relevant ordinary fields/labels are shown, without component, join or mode controls. Wheel source matches the checkout, includes migration/inspect template/minimal field-visibility script, excludes obsolete editor assets and devsite/tests/scripts. No migration was added or applied; existing development data was not changed.
+Wagtail remains the sole UI; root redirects to its login. More elaborate name editing, structured postal editing, importing/matching, financial workflows, letters, dispatch and direct sending remain deferred. These synthetic checks do not establish stakeholder authority, financial policy or operational acknowledgment readiness. Requirements, acceptance criteria and supporting development docs reflect these refinements.

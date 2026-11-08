@@ -5,43 +5,5 @@
         <dt>Postal address</dt>
         <dd id="contact-postal-address">{{ object.postal_address|default:"—"|linebreaksbr }}</dd>
     </dl>
-    <section aria-labelledby="contact-history-heading">
-        <h2 id="contact-history-heading">Change history</h2>
-        {% for entry in contact_history %}
-            <article>
-                <h3>{{ entry.action|capfirst }}</h3>
-                <p>{{ entry.occurred_at }} · {{ entry.actor|default:"System or unavailable account" }} · {{ entry.origin|capfirst }}</p>
-                <dl>
-                    {% if entry.before %}
-                        <dt>Previous name</dt><dd>{{ entry.before.display_name }}</dd>
-                        <dt>Previous kind</dt><dd>{{ entry.before.kind|capfirst }}</dd>
-                        <dt>Previous email</dt><dd>{{ entry.before.email|default:"—" }}</dd>
-                        <dt>Previous postal address</dt><dd>{{ entry.before.postal_address|default:"—"|linebreaksbr }}</dd>
-                    {% endif %}
-                    {% if entry.after %}
-                        <dt>Recorded name</dt><dd>{{ entry.after.display_name }}</dd>
-                        <dt>Recorded kind</dt><dd>{{ entry.after.kind|capfirst }}</dd>
-                        <dt>Recorded email</dt><dd>{{ entry.after.email|default:"—" }}</dd>
-                        <dt>Recorded postal address</dt><dd>{{ entry.after.postal_address|default:"—"|linebreaksbr }}</dd>
-                    {% endif %}
-                </dl>
-                {% if entry.before and entry.after and entry.before.name != entry.after.name and entry.before.display_name == entry.after.display_name %}
-                    <p>Name structure changed; the displayed name is unchanged.</p>
-                {% endif %}
-            </article>
-        {% empty %}
-            <p>No recorded changes.</p>
-        {% endfor %}
-        {% if contact_history.has_other_pages %}
-            <nav aria-label="Change history pages">
-                {% if contact_history.has_previous %}
-                    <a href="?history_page={{ contact_history.previous_page_number }}">Newer changes</a>
-                {% endif %}
-                <span>Page {{ contact_history.number }} of {{ contact_history.paginator.num_pages }}</span>
-                {% if contact_history.has_next %}
-                    <a href="?history_page={{ contact_history.next_page_number }}">Older changes</a>
-                {% endif %}
-            </nav>
-        {% endif %}
-    </section>
+    <p><a href="{{ history_url }}">History</a></p>
 {% endblock %}

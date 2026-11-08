@@ -1,10 +1,14 @@
+import json
 from typing import override
 
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db import transaction
 from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils.functional import cached_property
 from wagtail.admin import messages
+from wagtail.admin.ui.tables import Column, DateColumn, UserColumn
+from wagtail.admin.views.generic.history import HistoryView
 from wagtail.admin.views.generic.models import (
     CreateView,
     DeleteView,
@@ -72,11 +76,105 @@ class ContactInspectView(InspectView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        history = self.object.history.select_related("actor")
-        context["contact_history"] = Paginator(history, 20).get_page(
-            self.request.GET.get("history_page")
+        context["history_url"] = reverse(
+            "wagtail_crm_contacts:history", args=[self.object.pk]
         )
         return context
+
+
+class ContactChangesColumn(Column):
+    cell_template_name = "wagtail_crm/contacts/history_changes.html"
+
+    def get_cell_context_data(self, instance, parent_context):
+        context = super().get_cell_context_data(instance, parent_context)
+        before, after = instance.before or {}, instance.after or {}
+        changes = []
+        for field, label in (
+            ("display_name", "Name"),
+            ("kind", "Contact type"),
+            ("email", "Email"),
+            ("postal_address", "Postal address"),
+        ):
+            old, new = before.get(field), after.get(field)
+            if old != new:
+                if field == "kind":
+                    old = Contact.Kind(old).label if old else None
+                    new = Contact.Kind(new).label if new else None
+                changes.append(
+                    {
+                        "label": label,
+                        "before": old,
+                        "after": new,
+                        "whitespace_changed": (
+                            field in {"display_name", "postal_address"}
+                            and isinstance(old, str)
+                            and isinstance(new, str)
+                            and " ".join(old.split()) == " ".join(new.split())
+                        ),
+                    }
+                )
+        context["action_label"] = (
+            "Initial record"
+            if instance.action == "baseline"
+            else instance.action.capitalize()
+        )
+        context["changes"] = changes
+        context["structure_changed"] = before.get("name") != after.get(
+            "name"
+        ) and before.get("display_name") == after.get("display_name")
+        context["before_snapshot"] = json.dumps(
+            instance.before, ensure_ascii=False, indent=2
+        )
+        context["after_snapshot"] = json.dumps(
+            instance.after, ensure_ascii=False, indent=2
+        )
+        return context
+
+
+class ContactHistoryView(HistoryView):
+    permission_required = "view"
+    any_permission_required = None
+    filterset_class = None
+    verbose_name_plural = "contact changes"
+
+    @cached_property
+    def columns(self):
+        return [
+            ContactChangesColumn("action", label="Changes"),
+            UserColumn(
+                "actor",
+                label="Actor",
+                blank_display_name="System or unavailable account",
+            ),
+            DateColumn("occurred_at", label="Date"),
+            Column("origin", label="Origin"),
+        ]
+
+    def get_base_queryset(self):
+        return self.object.history.select_related("actor", "actor__wagtail_userprofile")
+
+    def get_edit_url(self, instance):
+        if self.user_has_permission("change"):
+            return super().get_edit_url(instance)
+        return None
+
+    def get_breadcrumbs_items(self):
+        items = super().get_breadcrumbs_items()
+        if not self.get_edit_url(self.object):
+            items.insert(
+                -1,
+                {
+                    "url": reverse(
+                        "wagtail_crm_contacts:inspect", args=[self.object.pk]
+                    ),
+                    "label": self.get_page_subtitle(),
+                },
+            )
+        return items
+
+    @cached_property
+    def header_buttons(self):
+        return super().header_buttons if self.get_edit_url(self.object) else []
 
 
 class ContactViewSet(ModelViewSet):
@@ -99,7 +197,8 @@ class ContactViewSet(ModelViewSet):
     search_fields = ("display_name", "email")
     inspect_view_enabled = True
     inspect_view_class = ContactInspectView
-    inspect_view_fields = ("display_name", "kind", "email", "uid")
+    inspect_view_fields = ("display_name", "kind", "email")
+    history_view_class = ContactHistoryView
     add_view_class = ContactCreateView
     edit_view_class = ContactEditView
     delete_view_class = ContactDeleteView

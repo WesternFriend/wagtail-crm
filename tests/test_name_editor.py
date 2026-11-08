@@ -110,7 +110,7 @@ def test_existing_names_survive_correspondence_edits_exactly(
         email="new@example.test",
     )
     if not form.original_parts:
-        assert "Recorded name:" in str(form.fields["given_name"].help_text)
+        assert "Current name:" in str(form.fields["given_name"].help_text)
     assert client.post(url, data).status_code == 302
     contact.refresh_from_db()
     assert contact.name == original
@@ -212,7 +212,7 @@ def test_organization_multiline_name_remains_recorded_context(line_break):
     contact = save_contact(Contact(kind="organization", name=original))
     displayed = ContactForm(instance=contact)
     assert not displayed["organization_name"].value()
-    assert "Recorded name:" in str(displayed.fields["organization_name"].help_text)
+    assert "Current name:" in str(displayed.fields["organization_name"].help_text)
     assert "&lt;Meeting&gt;" in str(displayed.fields["organization_name"].help_text)
     form = ContactForm(
         instance=contact,
@@ -248,12 +248,12 @@ def test_kind_transitions_preserve_unsplit_recorded_name(
     displayed = ContactForm(instance=contact)
     assert not displayed["given_name"].value()
     assert not displayed["surname"].value()
-    assert "Recorded name:" in str(displayed.fields["given_name"].help_text)
+    assert "Current name:" in str(displayed.fields["given_name"].help_text)
     assert "&lt;Name&gt;" in str(displayed.fields["given_name"].help_text)
     organization_name = displayed["organization_name"].value() or ""
     if "\n" in full:
         assert not organization_name
-        assert "Recorded name:" in str(displayed.fields["organization_name"].help_text)
+        assert "Current name:" in str(displayed.fields["organization_name"].help_text)
     else:
         assert organization_name == full
     form = ContactForm(
@@ -324,3 +324,15 @@ def test_new_name_fields_explain_requirements():
         form.fields["given_name"].help_text == "Enter a given name, surname, or both."
     )
     assert form.fields["organization_name"].help_text == "Enter the organization name."
+
+
+@pytest.mark.parametrize("kind", ["person", "organization"])
+def test_current_recorded_name_is_emphasized_and_escaped(kind):
+    name = {"full": "Pat <Morgan>\nSociety"}
+    contact = save_contact(Contact(kind=kind, name=name))
+    form = ContactForm(instance=contact)
+    field = "organization_name" if kind == "organization" else "given_name"
+    help_text = str(form.fields[field].help_text)
+    assert "<strong>Current name: Pat &lt;Morgan&gt;\nSociety</strong>" in help_text
+    assert "blank to keep it." in help_text
+    assert contact.name == name

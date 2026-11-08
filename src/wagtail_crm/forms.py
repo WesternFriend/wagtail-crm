@@ -85,14 +85,14 @@ class ContactForm(forms.ModelForm):
         if self.original_name:
             if self.organization_recorded_context:
                 self.fields["organization_name"].help_text = format_html(
-                    "Recorded name: {}. Leave the name field blank to keep it, or enter a replacement name.",
+                    "<strong>Current name: {}</strong> Leave the name field blank to keep it.",
                     original_full,
                 )
             elif "organization_name" not in initial:
                 self.initial["organization_name"] = original_full
             if not self.original_parts:
                 self.fields["given_name"].help_text = format_html(
-                    "Recorded name: {}. Leave both name fields blank to keep it, or enter a given name, surname, or both as known replacement values.",
+                    "<strong>Current name: {}</strong> Leave both name fields blank to keep it.",
                     original_full,
                 )
         selected_kind = (

@@ -1,0 +1,23 @@
+<td>
+    <p>{{ action_label }}</p>
+    <dl>
+        {% for change in changes %}
+            <dt>{{ change.label }}</dt>
+            <dd>Before: {{ change.before|default:"—"|linebreaksbr }}</dd>
+            <dd>After: {{ change.after|default:"—"|linebreaksbr }}</dd>
+            {% if change.whitespace_changed %}
+                <dd>Whitespace changed; full snapshots retain the exact values.</dd>
+            {% endif %}
+        {% endfor %}
+    </dl>
+    {% if structure_changed %}
+        <p>Name structure changed; the displayed name is unchanged.</p>
+    {% endif %}
+    <details>
+        <summary class="button button-small button-secondary" aria-label="Full snapshots: {{ action_label }}, {{ instance.occurred_at|date:'DATETIME_FORMAT' }} (change {{ instance.pk }})">Full snapshots</summary>
+        <h3>Before</h3>
+        <pre>{{ before_snapshot }}</pre>
+        <h3>After</h3>
+        <pre>{{ after_snapshot }}</pre>
+    </details>
+</td>

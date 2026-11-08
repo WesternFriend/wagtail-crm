@@ -21,7 +21,9 @@ class Contact(models.Model):
     revision = models.PositiveIntegerField(default=0, editable=False)
     name = models.JSONField(default=dict, blank=True)
     display_name = models.TextField("name", editable=False, blank=True)
-    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.PERSON)
+    kind = models.CharField(
+        "contact type", max_length=20, choices=Kind.choices, default=Kind.PERSON
+    )
     email = models.EmailField(blank=True)
     postal_address = models.TextField(blank=True)
 
@@ -101,6 +103,8 @@ class ContactHistory(models.Model):
     class Meta:
         ordering = ["-occurred_at", "-pk"]
         default_permissions = ()
+        verbose_name = "contact change"
+        verbose_name_plural = "contact changes"
 
     def __str__(self):
         return f"{self.contact_uid}: {self.action}"
