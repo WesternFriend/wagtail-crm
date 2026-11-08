@@ -11,3 +11,5 @@ Status: interview notes, 2026-11-08. These guide downstream design; they are not
 - The Editor uses a Mac desktop. Browser, macOS version, display and accessibility preferences remain unknown. Desktop use guides initial UX and browser validation.
 - Portability proposal: documented CSV or JSON, PDFs, retained evidence and manifest, preserving stable IDs and relationships while excluding active credentials/session secrets. Exact schema and verification procedure remain to be designed.
 - Current draft requirements/architecture/security notes provide background, not stakeholder approval or proof of implemented controls. Scaffold verification from earlier environments must not be treated as current validation.
+
+- Brylie requires established, explicitly selected standards for common models (people, organizations, addresses and related contact data/relationships), with source adapters mapping into that baseline. See FR-23 and AC-18. Standards/versions/profile/library selection remains open; document it before extending the scaffold, including mappings, international/incomplete-data behavior and justified departures.

@@ -23,6 +23,16 @@ The initial interface and standard letters are English; calculations and reporti
 
 PayPal is the first supported source; core donor and contribution records remain processor-neutral. Source-specific adapters must not make the core dependent on PayPal identifiers or rules.
 
+## Standards-based common data models
+
+- **FR-23:** Adopt a specific, documented set of established standards for common data models rather than inventing local conventions. At minimum, cover people, organizations (including companies and nonprofits), postal addresses, and associated contact details and relationships. Use those standards as the baseline for the processor-neutral core and portable exports; map PayPal and other source representations into that baseline at import boundaries. Keep source identifiers, original evidence and mapping provenance distinct from canonical records. Standardization must not silently merge identities or turn imported facts into approved decisions.
+
+Before implementing or materially extending these common models, record the selected standards, versions, authoritative references, supported profile/subset, field and relationship mappings, validation semantics, and any justified extensions or departures in an architecture decision. Evaluate international names and addresses, optional or incomplete data, multiple contact details, person/organization distinctions and relationships, interoperability, implementation effort, maintenance, and compatibility with Apache-licensed distribution. Adopt only the relevant profile; a standard does not require implementing unrelated capabilities or determine financial policy. Reuse suitable maintained libraries where beneficial, with dependency and license review.
+
+Acceptance requires representative synthetic people, organizations, international names/addresses and incomplete records to retain their supported meaning through import, storage and export. Document any normalization or information loss; preserve source evidence and expose unsupported cases rather than silently truncating or coercing them. Publish explicit mappings and justified departures so later adapters and adopters can use the same baseline. The existing Contacts scaffold is not evidence of conformance.
+
+Brylie has requested standards adoption as product direction. The particular standards, versions, profile and libraries remain an open technical decision; none is selected by this requirement. Proposed selection owner: Brylie, with staff review of correspondence behavior and representative records.
+
 ## First operational outcome
 
 The Editor completes one agreed annual acknowledgment cycle: collect source records and correspondence context, import and resolve duplicates, confirm donors, review charitable allocations and refunds, reconcile, approve and issue letters, distribute through agreed tools, and record dispatch. The resulting record explains inclusions, exclusions, unresolved work, source evidence, decisions, and corrections.

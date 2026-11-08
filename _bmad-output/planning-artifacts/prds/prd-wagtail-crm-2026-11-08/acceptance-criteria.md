@@ -1,6 +1,6 @@
 # Minimum operational release — acceptance criteria
 
-Status: proposed refinement, 2026-11-08. Derived from the approved brief, interview and supplied acceptance review. Not stakeholder approval, verified behavior, or a claim that the current Contacts scaffold implements this workflow. Existing FR identifiers remain stable; FR-20–22 add import recovery, explicit reconciliation and issuance recovery.
+Status: proposed refinement, 2026-11-08. Derived from the approved brief, interview and supplied acceptance review. Not stakeholder approval, verified behavior, or a claim that the current Contacts scaffold implements this workflow. Existing FR identifiers remain stable; FR-20–22 add import recovery, explicit reconciliation and issuance recovery; FR-23 adds standards-based common models at Brylie's request, with standards selection still open.
 
 ## Acceptance evidence contract
 
@@ -66,6 +66,8 @@ All amounts here are synthetic USD unless stated. Numerical allocations are fixt
 | AC-16: Export donor with gift/refund, policy/reviews, V1/V2 and attempts; separately restore records and artifacts | Independent reader reconstructs history, values, relationships and versions without app; no active secrets in export. Restore reproduces required records and matching artifacts with reviewed recovery procedure. | Manifest, schema, independent reconstruction notes and restore results; maintainer plus Editor/finance |
 | AC-17: Editor repeats representative synthetic cycle after onboarding on confirmed Mac/browser | Correct routine outcomes with minimal prompting; Editor explains amounts, blocks, next steps and document states, escalates finance appropriately. Keyboard/zoom/non-color/error checks pass; log help and repetition. Unknown numeric assistance/time targets are not silently treated as met. | Short tasks, resulting records, brief feedback, assistance log and accessibility findings; Editor/Brylie |
 
+| AC-18 (FR-23): Synthetic people and organizations, international names/addresses, multiple contact details and incomplete records; representative PayPal mapping | Selected standards/versions/profile and justified departures are documented. Import, storage and portable export preserve supported meaning and relationships; original source evidence remains traceable. Unsupported values stay visible, with no silent truncation, invented required values, identity merging or source-specific core conventions. | Architecture decision, authoritative standard references, field/relationship mappings, independent expected round-trip records, validation and dependency/license review; Brylie, with staff review of correspondence behavior |
+
 ## Decisions required before accepting affected increments
 
 These are open items, not assigned authority. Brylie's next coordination action is to request stakeholder confirmation and replace role placeholders with named owners and evidence references.
@@ -73,6 +75,7 @@ These are open items, not assigned authority. Brylie's next coordination action 
 | Decision | Proposed decision role; next action | Revisit/acceptance condition |
 | --- | --- | --- |
 | Named business, coverage, dispute, finance, issue and closure authorities | Business owner with Editor/bookkeeper; confirm names and permission/approval boundaries | Before accepting authority-dependent operational gates |
+| Common-model standards, versions, supported profile and libraries | Brylie; compare established standards against representative records, document selection/mappings/departures and review dependency licenses | Before implementing or materially extending common models; AC-18 cannot pass without a recorded selection |
 | Exact period, sources, accounts, date basis and offline coverage | Editor/bookkeeper; inspect exports and confirm scope | Before financial dataset and coverage acceptance |
 | Duplicate keys, rejected rows, interruption boundaries | Brylie plus source reviewer; inspect source semantics and specify retry/disposition examples | Before import acceptance |
 | Historical policies, zero/blank treatment, refunds and material-change classification | Finance with Editor; approve examples/effective versions and escalation boundaries | Before financial and approval-invalidation acceptance |
