@@ -15,7 +15,7 @@ companions: [FIRST-CONTACT-PR.md]
 
 # Initial contact profile
 
-Accepted for the bounded implementation, with the user's clarification that unknown name structure stays supplied text, confirmed name parts are editable with a generated preview, and structured postal editing is deferred.
+Accepted for the bounded implementation, with a simple Wagtail given-name/surname form. Richer existing name structure is preserved internally; elaborate name editing and structured postal editing are deferred.
 
 ## Design paradigm
 
@@ -35,7 +35,7 @@ flowchart LR
 
 - **Binds:** Contact forms, profile conversion, migration.
 - **Prevents:** Duplicate name maintenance, inferred identity and processor-dependent contacts.
-- **Rule:** One contact represents one person or organization. Staff edit its name once; known components generate the full representation, while unknown structure stays unstructured. Never parse names into confirmed components, merge on shared details, or infer transaction roles. Use explicit “Enter name parts” and “Use a full name” actions, without duplicate correspondence names or automatic prompts.
+- **Rule:** One contact represents one person or organization. Staff edit its name once; known components generate the full representation, while unknown structure stays unstructured. Never parse names into confirmed components, merge on shared details, or infer transaction roles. Use ordinary Given name and Surname fields, neither individually required, with at least one value for new people. No component rows, join controls, naming modes or duplicate editable full name. Keep existing/imported full names without parsing them.
 
 ### AD-2 — Bounded JSContact profile
 
@@ -52,7 +52,7 @@ flowchart LR
 | One optional postal address | `addresses.correspondence.full` | Multiline Unicode text. No separate country/state/postcode fields or address parser in this increment. |
 | Exchange envelope | `@type: Card`, `version: 1.0` | Ordinary contact export; exclude audit/source evidence from the Card. |
 
-Profile validation: components must be nonempty and contain a nonseparator, with `isOrdered: true` and explicit `defaultSeparator` (including empty). An intervening `separator` replaces the default; reject adjacent/leading/trailing separator components and unsupported kinds. Only a complete valid name save changes representation, preserving prior values/structure in history. Ordinary staff entry starts with one supplied Name field. Staff can explicitly enter confirmed, repeatable typed parts, reorder them, and edit exact joins or separator parts; the generated name is read-only. Returning to supplied text retains previous structure in history. Invalid parts preserve entered work without mutation; correspondence edits preserve supported formatting. Use fixed map key `correspondence` in this profile; it is an application identifier, not standardized delivery intent. More entries/other keys are unsupported. Preserve invalid legacy email in storage; encoding it fails explicitly without modifying it.
+Profile validation: components must be nonempty and contain a nonseparator, with `isOrdered: true` and explicit `defaultSeparator` (including empty). An intervening `separator` replaces the default; reject adjacent/leading/trailing separator components and unsupported kinds. Only a complete valid save changes a name, preserving prior values/structure in history. The ordinary Wagtail form edits only given name and surname; generate the full representation. New names use given then surname and an ordinary space when both are present. Explicitly known simple components may populate these fields; preserve the original name object on unchanged saves, including its existing ordering/formatting. Names outside the simple editor remain recorded context, with blank replacement fields retaining them during correspondence edits. Never split supplied text. Richer name editing is deferred until demonstrated need. Use fixed map key `correspondence` in this profile; it is an application identifier, not standardized delivery intent. More entries/other keys are unsupported. Preserve invalid legacy email in storage; encoding it fails explicitly without modifying it.
 
 [ASSUMPTION] Pin CLDR 49 / UTS #35 revision 79 as the formatting reference, but implement only explicit JSContact ordering/separators for these examples. This is a proposed limitation, not a claim of locale-aware CLDR formatting; locale-driven patterns wait for known needs. Blank email/address values do not invalidate contacts or establish delivery readiness. Future adapters must retain original observations and additional emails separately from correspondence and attribution.
 
@@ -64,7 +64,7 @@ Profile validation: components must be nonempty and contain a nonseparator, with
 
 ## Django/Wagtail seed
 
-`Contact` remains the owner: UUID UID, validated name `JSONField`, derived `display_name` text for list/search, existing email/kind, and multiline postal text. The form exposes one ordinary editor for each staff-editable value. A rendered name is read-only/derived, not a second source of truth. `ContactHistory` stores private before/after snapshots; a hidden revision check rejects stale edits. Shared services use the database router, transactions and row locks where supported. This is not a general audit platform or validation of production database concurrency.
+`Contact` remains the owner: UUID UID, validated name `JSONField`, derived `display_name` text for list/search, existing email/kind, and multiline postal text. The Wagtail form exposes ordinary given-name/surname inputs for people and one organization-name input for organizations; it writes the canonical name internally. A minimal form script shows and enables only the relevant kind-specific fields. A rendered name is read-only/derived, not a second source of truth. `ContactHistory` stores private before/after snapshots; a hidden revision check rejects stale edits. Shared services use the database router, transactions and row locks where supported. This is not a general audit platform or validation of production database concurrency.
 
 | Existing framework | Locked version |
 | --- | --- |

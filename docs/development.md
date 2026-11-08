@@ -18,7 +18,9 @@ Use `mise tasks` to discover tasks defined in `mise.toml`. The `check` task runs
 | `mise.toml` | Tool versions and shared setup, quality, test, and development tasks |
 | `.github/workflows/checks.yml` | Code quality, Django coverage, and Chromium CI jobs |
 
-Contacts have an independent stable identifier, a person/organization type, one name, one optional email, and one optional multiline postal address. Staff enter a supplied full name without parsing, or choose “Enter name parts” to edit confirmed given names and surnames in display order. Parts may repeat or contain multiple words; keyboard-operable buttons add, remove and reorder them. Structured editing shows a read-only generated name, supports space-free joins and preserves explicit separators. “Use a full name” returns to supplied text, retaining prior structure in private change history. No raw JSON is exposed. Unrelated correspondence edits preserve exact supported name formatting. Structured postal address editing is deferred.
+Contacts have an independent stable identifier and person/organization type. Person entry uses ordinary Given name and Surname fields; either alone is sufficient, with the displayed name generated on save. Multiword and non-Latin values are accepted. There are no component rows, join controls, naming modes or duplicate editable full name. Organizations use one organization-name field. Email and multiline postal address are optional.
+
+Existing/imported full names are not split. Supported known simple components populate the fields; names outside this editor remain visible as recorded context and are kept when replacement fields are blank. Correspondence-only edits preserve exact stored name structure. Explicit replacements retain prior values in private history. Richer name editing and structured postal editing are deferred.
 
 The inspect screen shows change history to users with contact-view permission. Supported create/edit/delete operations record private snapshots atomically, and history survives contact deletion. Existing Contacts migrate with their original PKs, exact names, kinds and email values; no name components, correspondence verification or donor attribution are inferred. Contacts remain independent of login accounts, and shared emails do not merge them. Financial models, provider imports, broad conversion tools and email sending remain unimplemented.
 
@@ -114,7 +116,7 @@ Linux CI or a minimal Linux machine may need system browser dependencies:
 mise run browser-install -- --with-deps
 ```
 
-The browser suite starts Django's static live server and creates its own synthetic staff accounts in an isolated test database. It does not use the local development administrator or require a separately running server. Tests exercise actual login, Wagtail navigation, creating a contact, and denial for a user without CRM permissions.
+The browser suite starts Django's static live server and creates its own synthetic staff accounts in an isolated test database. It does not use the local development administrator or require a separately running server. Tests exercise actual login, Wagtail navigation, ordinary person creation/editing, single names, validation, preservation of existing names, organization names, and denial for a user without CRM permissions. Login starts at the root redirect into Wagtail.
 
 If a managed environment supplies Chromium instead of allowing downloads, select it explicitly:
 
@@ -122,7 +124,7 @@ If a managed environment supplies Chromium instead of allowing downloads, select
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium mise run browser
 ```
 
-An optional `CRM_SCREENSHOTS_DIR` environment variable captures a synthetic Contacts screenshot after the successful creation check. Do not commit screenshots or other artifacts containing real donor data. Browser installation or launch failures must be reported as blocked checks, not treated as passing or silently skipped.
+An optional `CRM_SCREENSHOTS_DIR` environment variable captures a synthetic person-form screenshot during the creation/editing check. Do not commit screenshots or other artifacts containing real donor data. Browser installation or launch failures must be reported as blocked checks, not treated as passing or silently skipped.
 
 ## PostgreSQL and database portability
 

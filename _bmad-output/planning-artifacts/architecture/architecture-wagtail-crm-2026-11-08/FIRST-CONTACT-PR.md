@@ -1,73 +1,63 @@
 ---
 status: done
-baseline_commit: 5c02fbe1bf9bc5896eff63dd3d1d55a3778776de
+baseline_commit: 5055d2f5b4518676c9093aeb3eb47121a81a17af
 context: []
 ---
 
 # First contact-management PR
 
-Status: implemented and locally verified, including structured-name editing.
+PR title: **Simplify person entry to ordinary Wagtail name fields**.
 
-PR title: **Add standards-based contact names and correspondence details**.
+The user found the component editor confusing. This accepted scope supersedes the earlier component-row, join and naming-mode UI. Wagtail is the sole UI, including future workflows; the site root redirects to its login page. No separate frontend or new planning layer is needed.
 
-Accepted scope: implement directly from this plan. Unknown structure uses a plain full-name field. Known structure uses separately editable, repeatable name components; the full name is generated, never independently maintained. Standards details stay internal. Structured postal address editing is deferred; one multiline field is sufficient.
+## Current increment
 
-Outcome: authorized staff can create, edit and inspect a person or organization using one name editor, one optional email and one optional international postal address. Existing Contacts survive unchanged in meaning. This is a development increment toward the complete acknowledgment cycle.
+- Adding a person opens one ordinary Wagtail form with Given name and Surname. Neither is individually mandatory; a new person requires at least one nonblank value. Single names, multiword values and Unicode work. Generate the displayed name without duplicate entry. New names use given then surname, with a space when both are present.
+- Populate simple existing components only from their recorded meanings. Unchanged saves preserve the exact original object, including ordering and separators. Existing full names, repeated/unsupported components and other names outside the simple editor stay visible as recorded context; blank replacement fields keep them during correspondence edits. Never guess how to split text or force name reconstruction to edit email/address.
+- Explicit replacement values preserve the prior name and provenance through existing atomic history. Supported simple-component corrections retain existing formatting where representable. Richer name editing is deferred until demonstrated need.
+- Organizations keep one ordinary organization-name field. Only relevant fields and labels are visible for the selected kind. Existing names that a single-line field cannot preserve remain recorded context until explicitly replaced.
+- Remove the custom name widget/module, component templates, join controls, naming modes, generated preview and obsolete JS/CSS. A minimal Wagtail form script may toggle person/organization field visibility. Use the existing name representation and services; no migration is required.
 
-## Bounded implementation
+## Preservation and permissions
 
-1. `src/wagtail_crm/models.py` and `migrations/`: implement the companion profile, independent UID and small contact-change history. Keep the existing app/model identity and PKs. Add fields permissively, copy exact legacy name/email/kind data using historical migration models, backfill a distinct UID per row, then enforce constraints. Remove or repurpose the old name storage only after copying and testing preservation; never leave two independently editable names.
-2. `src/wagtail_crm/contact_profile.py`: add small validated encode/decode/name-rendering helpers for the selected subset. No new library is required initially. Unsupported properties/cardinality/structure produce explicit errors before mutation. No public import/export endpoint or processor adapter in this PR.
-3. `src/wagtail_crm/forms.py`, `widgets.py`, widget templates and static files extend Wagtail's existing create/edit forms. Unknown structure uses supplied text without parsing. Confirmed names use repeatable typed components, ordering controls and a read-only generated full name. Exact supported joins and separator parts are retained; invalid submissions preserve entered work. Explicitly returning to supplied text retains earlier structure in history. There is no independently editable generated name, raw JSON UI or separate frontend. Optional multiline postal text and email retain normal validation. Preserve list/search/inspect, URLs and permissions; mutations use the shared atomic operations.
-4. `devsite/management/commands/seed_demo.py`, `tests/`: update synthetic examples; test migration from `0001_initial`, profile preservation, edits/history, forms and denied endpoints. Extend the existing Chromium contact test for the edited fields and validation. Update development docs only for actual behavior.
+Retain existing Contact PKs, stable UID, kind/email/address values, URLs, search, inspection, migration behavior, private history, stale-edit rejection and add/change/view/delete permissions. No name change establishes identity attribution, financial approval or correspondence readiness. Keep one optional email and multiline international postal address; structured postal editing remains deferred. No database mutation outside isolated tests.
 
-Keep the existing contact add/change/view/delete permissions. Editing correspondence does not confirm donor attribution. Contact-history access requires contact-view permission; no general history/export API or new staff role. History snapshots retain the contact UID independently of a nullable contact link, so ordinary deletion cannot cascade away previous evidence. Retention policy is outside this increment.
+## Representative acceptance
 
-## Representative acceptance examples
+- Given Mary Beth / van Berg, save Mary Beth van Berg; either field alone also saves. Neither has an individual required marker. Both blank for a new person show a clear error and retain correspondence input.
+- Given an existing unparsed full name or repeated components, correspondence-only saves preserve the exact stored name. Known surname-first names and supported separators are retained internally without exposing editing controls. Imported text is never parsed automatically.
+- Given a supported known component correction or an explicit replacement for an unsupported name, save the generated name and retain the original snapshot in history. Invalid input and stale edits leave stored data/history unchanged.
+- Given an organization, show its single name field. Hidden person/organization fields do not leave irrelevant labels behind. Existing multiline organization names survive unrelated browser saves exactly.
+- Given staff without CRM permissions, deny access and mutation; view-only and CSRF rules remain unchanged. All UI remains within Wagtail.
 
-- Given a legacy Contact, migration preserves its PK, exact name/email/kind and existing relationships; it gains a unique stable UID and no invented structure or confirmation.
-- Given `Sukarno`, `Mary Beth van Berg`, or `王小明` supplied as a full name, saving and profile round-trip preserve that name without parsing it.
-- Given ordered `surname=王`, `given=小明`, separator empty, render `王小明`; editing given to `大明` renders `王大明` without another name edit. Repeated `surname=Rivera`, `surname=Barrientos` after `given=Diego` render `Diego Rivera Barrientos` with spaces. Preserve multiword components and previous values. Transition from supplied text to confirmed components retains the supplied text in history; a component-losing edit must preserve prior structure in history or fail before mutation.
-- Given an organization with no email/address, staff can save it; adding a multiline international address requires no U.S. state or ZIP. Shared emails do not merge records. Existing migrated email values are preserved, without inventing verification.
-- Given no contact permissions, inspect/history/mutation are denied. View-only permits inspect/history but denies mutations; add/change/delete remain separately enforced, with existing CSRF protection. Successful create/update/delete records actor/time and old/new snapshots atomically; invalid input changes neither contact nor history. Deletion retains history. Migration uses a system baseline, not a fabricated staff approval.
+## Verification
 
-## Verification and exclusions
+Run `mise run check`, `mise run hooks`, `mise run test`, and `mise run browser`. Test ordinary inputs, optional/single names, blank validation, multiword/Unicode values, legacy/full/repeated/surname-first/custom-separator preservation, organization names, atomic history and stale edits. Browser tests start at root-to-login and cover actual visible fields, creation/editing, preservation and denial. Inspect a synthetic person-form screenshot. Build a wheel and verify migrations/inspect template/new minimal form script are included, obsolete widget assets are absent, and devsite/tests/scripts are excluded.
 
-Run `mise run check`, `mise run hooks`, `mise run test`, and `mise run browser`. Test fresh/upgrade migrations and profile round-trips, including empty/space/explicit punctuation separators, malformed components, and a preserved legacy email that cannot encode. Confirm search and one-name editing. No production data or migrations are used during planning.
+## Supporting documents and boundaries
 
-Exclude structured postal address editing, financial models/workflows, PayPal imports/matching, policy review, letters/PDF generation, dispatch, direct email sending, routing/preferences, multiple addresses, and broad interoperability tooling. Passing these cases does not establish operational-cycle readiness.
+The [contact spine](ARCHITECTURE-SPINE.md), PRD, acceptance criteria, addendum, README and development docs describe the simpler supported editing scope. Prior review evidence remains in Git history and [implementation triage](reviews/implementation-triage.md). Preserve the pre-existing uncommitted Wagtail-only PM edits.
 
-Initial foundation verification: 77 fast tests and both Chromium tests passed; combined statement/branch coverage reported 95%. `mise run check` and `mise run hooks` passed, including new untracked source files. Fresh/upgrade migration tests passed. The built wheel matches app source and includes migrations/templates while excluding devsite, tests and scripts. Synthetic browser output was visually inspected. The existing development database was not migrated. Independent review findings and fixes are recorded in [implementation triage](reviews/implementation-triage.md).
-
-## Structured-name follow-up — completed
-
-The latest user clarification supersedes the plain-only editor limitation above. Structured-name editing is part of this increment; do not add another planning layer.
-
-Implement straightforward separate fields for confirmed name components in `src/wagtail_crm/forms.py` with a small custom Django widget/template/static script if needed. Reuse the existing validated JSContact name object (ordered, repeated typed components) and shared atomic history operations; no need for fixed first/middle/last columns or a new migration. Support arbitrary repeated given/surname/surname2 components and multiword values, explicit ordering, surname-first and non-Latin names, including names joined without spaces. Preserve existing explicit separator components and exact supported formatting when reopening and saving. Expose only the controls necessary to edit these cases, with ordinary keyboard-operable buttons and labels, no raw JSON. Unknown structure remains a supplied full name; never split it automatically. When components are used, show the generated full name as a read-only preview, not another editable source of truth. Staff may explicitly return to a supplied name, retaining previous structure in history. Invalid submissions preserve entered parts and leave storage/history unchanged. Existing permissions, stale-edit checks, email/address editing and exact legacy migration behavior must remain intact. No finance, sending or structured postal changes.
-
-Update affected form/endpoint tests and add Chromium coverage for creating and editing structured names, repeated/multiword components, zero-space surname-first names, automatic generated-name updates and plain-name preservation. Test invalid parts, history across representation changes and structured data surviving unrelated edits. Run check/hooks/fast tests/browser, visually inspect a synthetic structured editor screenshot, and verify the wheel includes new templates/static files. Reconcile README/development/accepted contact spine and relevant requirements with actual editor behavior, without expanding scope. No public imports or deployment changes. Do not commit or push from the implementation agent.
+Defer elaborate name editing, structured postal editing, source importing/matching, financial models, policy review, letters/PDF generation, dispatch, direct sending, routing/preferences and broad converters. Passing this increment does not establish operational acknowledgment readiness.
 
 ## Review Triage Log
 
-Structured-editor independent review (each finding classified before grouping):
-
-| ID | Verdict / route | Evidence and disposition |
+| Finding | Verdict / route | Evidence and result |
 | --- | --- | --- |
-| Blind-1 | medium / patch | Returning from unchanged valid parts overwrites a manually corrected supplied draft; preserve that draft and test the transition. |
-| Blind-2 | medium / patch | Single-line controls strip supported CR/LF on save; preserve exact stored values across browser round-trips. |
-| Blind-3 | medium / patch | Widget ignores Django error/help attributes and targets a hidden input in structured entry; connect errors to visible controls and a focusable target. |
-| Blind-4 | medium / patch | Reordering can disable the focused movement button; move focus to an enabled control after updating. |
-| Blind-5 | low / patch | JavaScript trim and Python strip disagree on U+0085/U+FEFF; align the small client nonempty check. |
-| Blind-6 | low / patch | Without JavaScript the editor offers nonworking dynamic controls without explanation; add an explicit JavaScript-required fallback message. |
-| Blind-7 | medium / patch | Repeated control labels lack row context; add numbered accessible groups and update them after movement. |
-| Blind-8 | medium / patch | Browser tests bypass movement and explicit separators; test these handlers and persisted results. |
-| Edge-1 | medium / patch | Independently confirmed CR/LF loss in structured controls; covered by the same preservation fix as Blind-2. |
-| Edge-2 | medium / patch | Custom field removed CharField null validation; reject nulls in full names, components and separators before database writes. |
-| Verification-1 | medium / patch | No test executes either movement handler; extend Chromium coverage for both directions and saved order. |
-| Verification-2 | medium / patch | Endpoint tests construct separator payloads directly; exercise the actual widget, preview, unrelated save and conversion through Chromium. |
+| Blind-1: recorded context follows original kind | medium / patch | Made context available across kind changes; endpoint and browser transitions preserve the name. |
+| Blind-2: multiline preservation across kinds not defined | medium / patch | Explicit kind changes retain the existing recorded name when replacement is blank; tests cover this policy. |
+| Blind-3: hidden irrelevant inputs validate | medium / patch | Bound forms disable inactive fields using the posted kind; the minimal script also disables hidden controls. Tests cover inactive nulls and active errors. |
+| Blind-4: optional person fields lack combined instruction | low / patch | Added plain help that either name or both may be supplied. |
+| Blind-5: organization requirement lacks instruction | low / patch | Added organization-name help; recorded-context help explains preservation where applicable. |
+| Blind-6: malformed unsaved name objects fail construction | low / reject | This helper reads a validated stored profile. Malformed internal model instances are outside supported form callers; no new guards or malformed-record editing workflow added. |
+| Blind-7: line-break replacements cannot reopen in simple fields | false / reject | The recorded-context fallback deliberately handles values outside single-line editing and preserves them exactly. Added browser coverage confirms no mutation. |
+| Blind-8: person newline browser coverage missing | medium / patch | Browser correspondence edits now preserve both unstructured and structured multiline person names, plus multiline organizations. |
+| Blind-9: kind-switch drafts/errors unverified | medium / patch | Browser verifies round-trip kind selection, client draft retention, relevant errors, and stored names/kinds. |
+| Blind-10: optional field markers unverified | low / patch | Browser asserts neither person input has required attributes or individual required markers. |
+| Verification-1: surname correction not exercised | medium / patch | Formatting/history regression now independently corrects given and surname, retaining exact component order and separators. |
 
-All findings are bounded implementation or verification corrections; no new policy or planning increment is required.
+The independent edge-case review reported no additional findings. All retained findings were fixed; no new scope or elaborate editor was added.
 
-Final verification: `mise run check` and `mise run hooks` passed; 104 fast tests passed with 96% combined statement/branch coverage; all five Chromium scenarios passed. A further targeted Chromium run verified the final textarea-padding correction. Wheel contents include byte-matching widget templates, CSS, JS and migrations, excluding devsite/tests/scripts. All review findings above were fixed and covered by targeted regressions; none were deferred. Synthetic structured-editor output was visually inspected. No database migration was added or applied.
+## Final local verification
 
-Wagtail CMS is the only UI. The development root redirects directly to the named Wagtail login route; browser scenarios start at that root. Future features should use Wagtail extension points wherever possible.
+`mise run check` and `mise run hooks` passed. Fast tests: **110 passed**, with **95%** combined statement/branch coverage. Chromium: **6 passed**, including ordinary names, single names, validation, legacy preservation, organizations, kind transitions and permission denial. Synthetic person-form screenshot visually checked: only relevant ordinary fields/labels are shown, without component, join or mode controls. Wheel source matches the checkout, includes migration/inspect template/minimal field-visibility script, excludes obsolete editor assets and devsite/tests/scripts. No migration was added or applied; existing development data was not changed.

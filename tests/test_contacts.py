@@ -39,7 +39,7 @@ def test_view_only_user_cannot_create_contact(client, staff_user):
     assert client.get(reverse("wagtail_crm_contacts:index")).status_code == 200
     response = client.post(
         reverse("wagtail_crm_contacts:add"),
-        {"name": "Unauthorized Example", "kind": "person", "email": ""},
+        {"given_name": "Unauthorized Example", "kind": "person", "email": ""},
     )
     assert response.status_code == 302
     assert response.url == reverse("wagtailadmin_home")
@@ -51,7 +51,7 @@ def test_editor_can_create_contact_without_a_website_account(client, contact_edi
     response = client.post(
         reverse("wagtail_crm_contacts:add"),
         {
-            "name": "Example Meeting",
+            "organization_name": "Example Meeting",
             "kind": "organization",
             "email": "clerk@example.invalid",
         },
@@ -66,7 +66,7 @@ def test_editor_form_rejects_invalid_email(client, contact_editor):
     client.force_login(contact_editor)
     response = client.post(
         reverse("wagtail_crm_contacts:add"),
-        {"name": "Example", "kind": "person", "email": "not-an-email"},
+        {"given_name": "Example", "kind": "person", "email": "not-an-email"},
     )
     assert response.status_code == 200
     assert response.context["form"].errors["email"]
@@ -78,7 +78,7 @@ def test_mutation_requires_csrf_even_with_contact_permissions(contact_editor):
     client.force_login(contact_editor)
     response = client.post(
         reverse("wagtail_crm_contacts:add"),
-        {"name": "Example", "kind": "person", "email": ""},
+        {"given_name": "Example", "kind": "person", "email": ""},
     )
     assert response.status_code == 403
     assert not Contact.objects.exists()
@@ -92,20 +92,24 @@ def test_contacts_may_share_an_email_address():
     assert Contact.objects.count() == 2
 
 
-def test_staff_form_has_one_name_editor_and_multiline_address(client, contact_editor):
+def test_staff_form_has_ordinary_name_fields_and_multiline_address(
+    client, contact_editor
+):
     client.force_login(contact_editor)
     response = client.get(reverse("wagtail_crm_contacts:add"))
     form = response.context["form"]
     assert [field.name for field in form.visible_fields()] == [
-        "name",
         "kind",
+        "given_name",
+        "surname",
+        "organization_name",
         "email",
         "postal_address",
     ]
-    assert form["name"].value() == ""
-    assert form.fields["name"].widget.__class__.__name__ == "ContactNameWidget"
+    assert not form["given_name"].value()
+    assert form.fields["given_name"].widget.__class__.__name__ == "TextInput"
     assert form.fields["postal_address"].widget.__class__.__name__ == "Textarea"
-    assert "Enter name parts" in response.content.decode()
+    assert "Enter name parts" not in response.content.decode()
 
 
 def test_create_edit_inspect_and_delete_retain_private_history(client, contact_editor):
@@ -113,19 +117,26 @@ def test_create_edit_inspect_and_delete_retain_private_history(client, contact_e
     address = "Example Meeting\n〒100-8994 東京都千代田区\nJapan"
     response = client.post(
         reverse("wagtail_crm_contacts:add"),
-        {"name": "王小明", "kind": "person", "email": "", "postal_address": address},
+        {
+            "given_name": "王小明",
+            "kind": "person",
+            "email": "",
+            "postal_address": address,
+        },
     )
     assert response.status_code == 302
     contact = Contact.objects.get()
     uid = contact.uid
     assert contact.postal_address == address
     assert contact.history.get().actor == contact_editor
-    assert contact.history.get().after["name"] == {"full": "王小明"}
+    assert contact.history.get().after["name"]["components"] == [
+        {"kind": "given", "value": "王小明"}
+    ]
 
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
         {
-            "name": "王大明",
+            "given_name": "王大明",
             "kind": "person",
             "email": "",
             "postal_address": address,
@@ -135,7 +146,7 @@ def test_create_edit_inspect_and_delete_retain_private_history(client, contact_e
     assert response.status_code == 302
     contact.refresh_from_db()
     assert contact.uid == uid
-    assert contact.name == {"full": "王大明"}
+    assert contact.name["components"] == [{"kind": "given", "value": "王大明"}]
     assert contact.history.count() == 2
     change = contact.history.first()
     assert change.before["display_name"] == "王小明"
@@ -151,7 +162,9 @@ def test_create_edit_inspect_and_delete_retain_private_history(client, contact_e
     assert not Contact.objects.exists()
     deleted = ContactHistory.objects.filter(contact_uid=uid, action="deleted").get()
     assert deleted.actor == contact_editor
-    assert deleted.before["name"] == {"full": "王大明"}
+    assert deleted.before["name"]["components"] == [
+        {"kind": "given", "value": "王大明"}
+    ]
     assert deleted.before["postal_address"] == address
     assert deleted.after is None
     for entry in history:
@@ -175,7 +188,8 @@ def test_plain_name_editor_retains_unchanged_structure_then_preserves_previous_v
     client.force_login(contact_editor)
     url = reverse("wagtail_crm_contacts:edit", args=[contact.pk])
     payload = {
-        "name": "王小明",
+        "given_name": "小明",
+        "surname": "王",
         "kind": "person",
         "email": "new@example.test",
         "expected_revision": contact.revision,
@@ -183,11 +197,11 @@ def test_plain_name_editor_retains_unchanged_structure_then_preserves_previous_v
     assert client.post(url, payload).status_code == 302
     contact.refresh_from_db()
     assert contact.name["components"] == structured["components"]
-    payload["name"] = "王大明"
+    payload["given_name"] = "大明"
     payload["expected_revision"] = contact.revision
     assert client.post(url, payload).status_code == 302
     contact.refresh_from_db()
-    assert contact.name == {"full": "王大明"}
+    assert contact.display_name == "王大明"
     assert (
         contact.history.first().before["name"]["components"] == structured["components"]
     )
@@ -240,10 +254,10 @@ def test_blank_name_and_invalid_email_do_not_write_history(client, contact_edito
     client.force_login(contact_editor)
     response = client.post(
         reverse("wagtail_crm_contacts:add"),
-        {"name": "   ", "kind": "person", "email": "bad"},
+        {"given_name": "   ", "kind": "person", "email": "bad"},
     )
     assert response.status_code == 200
-    assert response.context["form"].errors["name"]
+    assert response.context["form"].errors["given_name"]
     assert not Contact.objects.exists()
 
 
@@ -259,7 +273,7 @@ def test_correspondence_only_edit_records_exact_previous_values(client, contact_
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
         {
-            "name": "Example",
+            "given_name": "Example",
             "kind": "person",
             "email": "new@example.test",
             "postal_address": "New\n住所",
@@ -285,7 +299,7 @@ def test_stale_form_preserves_newer_contact_and_shows_entered_work(
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
         {
-            "name": "Attempted edit",
+            "given_name": "Attempted edit",
             "kind": "person",
             "email": "",
             "expected_revision": original_revision,
@@ -293,7 +307,7 @@ def test_stale_form_preserves_newer_contact_and_shows_entered_work(
     )
     assert response.status_code == 200
     assert response.context["form"].non_field_errors()
-    assert response.context["form"]["name"].value() == "Attempted edit"
+    assert response.context["form"]["given_name"].value() == "Attempted edit"
     contact.refresh_from_db()
     assert contact.display_name == "Example"
     assert contact.email == "newer@example.test"
@@ -305,7 +319,7 @@ def test_edit_requires_its_hidden_revision(client, contact_editor):
     client.force_login(contact_editor)
     response = client.post(
         reverse("wagtail_crm_contacts:edit", args=[contact.pk]),
-        {"name": "Changed", "kind": "person", "email": ""},
+        {"given_name": "Changed", "kind": "person", "email": ""},
     )
     assert response.status_code == 200
     assert response.context["form"].errors["expected_revision"]
@@ -323,9 +337,11 @@ def test_form_respects_explicit_initial_name_and_unsaved_structure():
             "defaultSeparator": " ",
         }
     )
-    assert ContactForm(instance=contact)["name"].value() == contact.name
+    assert ContactForm(instance=contact)["given_name"].value() == "Alex"
     assert (
-        ContactForm(instance=contact, initial={"name": "Initial"})["name"].value()
+        ContactForm(instance=contact, initial={"given_name": "Initial"})[
+            "given_name"
+        ].value()
         == "Initial"
     )
 
@@ -395,9 +411,9 @@ def test_create_service_validation_error_stays_on_form(client, contact_editor):
     ):
         response = client.post(
             reverse("wagtail_crm_contacts:add"),
-            {"name": "Example", "kind": "person", "email": ""},
+            {"given_name": "Example", "kind": "person", "email": ""},
         )
     assert response.status_code == 200
     assert response.context["form"].non_field_errors()
-    assert response.context["form"]["name"].value() == "Example"
+    assert response.context["form"]["given_name"].value() == "Example"
     assert not Contact.objects.exists()

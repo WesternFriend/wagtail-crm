@@ -6,7 +6,7 @@ Wagtail's staff interface is the application's only UI. The site root redirects 
 
 ## Status
 
-Contact-management foundation. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, supplied or structured name editing, optional email and multiline postal editing, private change history, and permission-controlled views. Contact names and internal interchange helpers follow a bounded JSContact profile. The payment importer, financial controls, reporting dashboards, and letter generation are still planned. Production authentication hardening and deployment have not been completed.
+Contact-management foundation. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, ordinary given-name/surname fields, optional email and multiline postal editing, private change history, and permission-controlled views. Contact names and internal interchange helpers follow a bounded JSContact profile. The payment importer, financial controls, reporting dashboards, and letter generation are still planned. Production authentication hardening and deployment have not been completed.
 
 ## Run locally
 

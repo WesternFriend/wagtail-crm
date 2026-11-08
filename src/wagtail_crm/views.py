@@ -86,7 +86,14 @@ class ContactViewSet(ModelViewSet):
     add_to_admin_menu = True
     url_prefix = "crm/contacts"
     url_namespace = "wagtail_crm_contacts"
-    form_fields = ("name", "kind", "email", "postal_address")
+    form_fields = (
+        "kind",
+        "given_name",
+        "surname",
+        "organization_name",
+        "email",
+        "postal_address",
+    )
     list_display = ("display_name", "kind", "email")
     list_filter = ("kind",)
     search_fields = ("display_name", "email")
