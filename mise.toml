@@ -45,8 +45,8 @@ description = "Validate GitHub Actions workflows"
 run = "actionlint"
 
 [tasks.hooks-install]
-description = "Install prek pre-commit and pre-push Git hooks"
-run = "prek install"
+description = "Install GUI-compatible prek Git hooks with the mise environment"
+run = "uv run --locked python scripts/install_hooks.py"
 
 [tasks.hooks]
 description = "Run commit-stage hooks on tracked and untracked files"
