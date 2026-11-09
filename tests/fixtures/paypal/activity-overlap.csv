@@ -1,0 +1,5 @@
+"Date","Time","TimeZone","Name","Type","Status","Currency","Gross","Fee","Net","From Email Address","To Email Address","Transaction ID","Item Title","Reference Txn ID","Transaction Event Code","Balance Impact"
+"01/15/2026","09:30:00","PST","Avery Example","Donation Payment","Completed","USD","100.00","0.00","100.00","avery@example.org","giving@example.org","1AA00000000000001","","","T0013","Credit"
+"02/03/2026","14:05:10","PST","Blake Sample","Donation Payment","Completed","USD","50.00","-1.95","48.05","blake@example.org","giving@example.org","1AA00000000000002","","","T0013","Credit"
+"05/01/2026","08:00:00","PDT","Emery Giver","Donation Payment","Completed","USD","25.00","-1.03","23.97","emery@example.org","giving@example.org","1AA00000000000006","","","T0013","Credit"
+"08/12/2026","19:20:00","PDT","Morgan New","Donation Payment","Completed","USD","15.00","-0.74","14.26","morgan@example.org","giving@example.org","1AA00000000000013","","","T0013","Credit"

@@ -26,6 +26,7 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 INSTALLED_APPS = [
     "wagtail_crm.contacts",
+    "wagtail_crm.payments",
     "devsite",
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",

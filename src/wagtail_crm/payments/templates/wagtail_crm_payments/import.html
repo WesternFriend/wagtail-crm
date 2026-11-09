@@ -1,0 +1,54 @@
+{% extends "wagtailadmin/generic/base.html" %}
+{% load wagtailadmin_tags %}
+
+{% block main_content %}
+    {% if result %}
+        <h2 class="w-h2 w-mt-8">{{ filename }}</h2>
+        {% if result.payments %}
+            <p>{{ result.payments|length }} to import, {{ result.skipped|length }} skipped. Nothing is saved until you confirm.</p>
+        {% else %}
+            <p><strong>Nothing new to import.</strong> Every row is already imported or skipped.</p>
+        {% endif %}
+
+        <form method="post" class="w-my-6">
+            {% csrf_token %}
+            <input type="hidden" name="digest" value="{{ digest }}">
+            {% if result.payments %}
+                <button type="submit" name="confirm" class="button">Import {{ result.payments|length }} payments</button>
+                <button type="submit" name="cancel" class="button button-secondary">Cancel</button>
+            {% else %}
+                <a href="{{ index_url }}" class="button button-secondary">Back to payments</a>
+            {% endif %}
+        </form>
+
+        {% if result.payments %}
+            <h3 class="w-h3">To import</h3>
+            <table class="listing">
+                <thead><tr><th>Date</th><th>Name</th><th>Type</th><th>Gross</th><th>Fee</th><th>Net</th><th>Transaction ID</th></tr></thead>
+                <tbody>
+                    {% for payment in result.payments %}
+                        <tr><td>{{ payment.occurred_at }}</td><td>{{ payment.name }}</td><td>{{ payment.type }}</td><td>{{ payment.gross }}</td><td>{{ payment.fee }}</td><td>{{ payment.net }}</td><td>{{ payment.transaction_id }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if result.skipped %}
+            <h3 class="w-h3 w-mt-8">Skipped</h3>
+            <table class="listing">
+                <thead><tr><th>Row</th><th>Name</th><th>Transaction ID</th><th>Reason</th></tr></thead>
+                <tbody>
+                    {% for row in result.skipped %}
+                        <tr><td>{{ row.row }}</td><td>{{ row.name }}</td><td>{{ row.transaction_id }}</td><td>{{ row.reason }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    {% else %}
+        <form method="post" enctype="multipart/form-data" class="w-mt-8" novalidate>
+            {% csrf_token %}
+            {% formattedfield form.file %}
+            <button type="submit" class="button w-mt-4">Preview</button>
+        </form>
+    {% endif %}
+{% endblock %}

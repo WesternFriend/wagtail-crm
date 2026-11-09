@@ -16,7 +16,7 @@ mise exec -- uv run --locked python manage.py createsuperuser
 mise run dev
 ```
 
-Open <http://127.0.0.1:8000/admin/>. The seed command creates three synthetic contacts and a CRM Editors group, without creating logins or default passwords. It is repeatable and refuses to run outside DEBUG. Assign CRM Editors to a separately created staff account.
+Open <http://127.0.0.1:8000/admin/>. The seed command creates three synthetic contacts and a CRM Editors group (contacts, plus payment view and import), without creating logins or default passwords. It is repeatable and refuses to run outside DEBUG. Assign CRM Editors to a separately created staff account.
 
 These local settings use HTTP, loopback and DEBUG; they do not establish production readiness. Email uses a console mailer. Keep donor data, credentials, generated documents and backups private; develop with synthetic data. Runtime database/key/media files live in ignored `.data/`.
 
@@ -36,7 +36,15 @@ mise run dev
 
 People use Given name and Family name, either alone or both. Organizations use Name. Changing an organization to a person requires staff-entered Given name and/or Family name; the organization name is never split automatically. Email and multiline postal address are optional. Standard Wagtail History records actions, users and times; deleted contact activity remains in Reports → Site history. A menu hook exposes that existing report to CRM staff without page permissions. A small Inspect extension preserves postal-address line breaks; other views use framework defaults.
 
-There is no bespoke audit model, snapshot display, migration-baseline entry or optimistic locking. Concurrent editing follows Wagtail last-save-wins; protection is deferred. Import/export mappings, complex name formatting, structured address editing and financial workflows remain later work.
+There is no bespoke audit model, snapshot display, migration-baseline entry or optimistic locking. Concurrent editing follows Wagtail last-save-wins; protection is deferred. Import/export mappings, complex name formatting and structured address editing remain later work.
+
+## Payments
+
+`wagtail_crm.payments` (label `wagtail_crm_payments`) imports PayPal Activity Download CSVs. Payments → Import PayPal CSV uploads a file and previews the rows to import and the rows skipped, each with a reason; nothing is saved until staff confirm, and confirmation saves every new row in one transaction or none. Transaction ID is the identity, so an overlapping file adds only new transactions and a repeated file has nothing to confirm. Skipped rows are shown, not stored. Between preview and confirm the uploaded text waits in the staff member's database session; it is removed on confirm, cancel, a new upload or session expiry.
+
+Imported: `Completed` rows in USD whose Transaction Event Code is T00xx with Balance Impact Credit (received) or T11xx with Debit (refunds and reversals). Skipped with a reason: other statuses, outgoing T00xx payments, withdrawals and other codes, other currencies, malformed amounts or dates, and TimeZone values other than US abbreviations (PST/PDT, MST/MDT, CST/CDT, EST/EDT) or UTC/GMT. These assumptions come from PayPal's documentation; #12 confirms them against a real export. Synthetic fixtures are in `tests/fixtures/paypal/`; upload `activity.csv` to try the flow.
+
+Imported values are read-only: the stock list, Inspect and History views show them, and the Edit form has no fields until donor linking (#6). CRM Editors can view and import, not change or delete. Times are stored in UTC and shown in `TIME_ZONE` (`DJANGO_TIME_ZONE`, default UTC). Set it to the organization's zone, for example `America/Los_Angeles`; otherwise a gift late on December 31 Pacific time is shown as January 1.
 
 ## Layout and package boundary
 
@@ -44,11 +52,12 @@ There is no bespoke audit model, snapshot display, migration-baseline entry or o
 | --- | --- |
 | `src/wagtail_crm/` | Distribution package, not a Django app |
 | `src/wagtail_crm/contacts/` | Contact model/form, Wagtail integration, initial migration and namespaced static asset |
+| `src/wagtail_crm/payments/` | Payment model, PayPal CSV reader, import view and Wagtail integration |
 | `devsite/` | Synthetic development host and demo command; excluded from the wheel |
 | `tests/` | Staff-task, permission, model/form, seed and hook tests |
 | `tests/browser/` | Chromium tests using Django's isolated static live server |
 
-Future finance/imports/letters may depend on contacts; contacts imports no sibling domain or development host. No shared core or generic audit app exists. Build with `mise exec -- uv build --wheel`; verify migrations/static files are included and devsite/tests are excluded.
+Payments does not depend on contacts yet; later finance/letters apps may depend on contacts; contacts imports no sibling domain or development host. No shared core or generic audit app exists. Build with `mise exec -- uv build --wheel`; verify migrations/static files are included and devsite/tests are excluded.
 
 ## Checks and manual walkthrough
 
@@ -62,7 +71,7 @@ mise run browser
 
 `check` runs Ruff, mypy, actionlint, system checks and migration drift. `test` runs fast pytest/Django tests with coverage, excluding browser tests. Browser tests exercise real Wagtail login, person/organization creation and editing, optional details, validation recovery, contact-type changes and single names, search/Inspect/history, deletion activity and denied access. They use synthetic accounts and their own database; no separate server is needed. Linux may need `mise run browser-install -- --with-deps`. A managed Chromium can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Optional `CRM_SCREENSHOTS_DIR` saves a synthetic form screenshot; do not commit private data.
 
-Before requesting review, personally run these tasks in the application: create/find/edit/Inspect a person and organization; reopen known fields populated; change an organization to a person without automatic name splitting; save a single name and blank optional details; recover from invalid email/name errors; view standard History and Site history; verify a staff account without contact permission cannot access contact records. Fix confusing interactions directly instead of adding instructions.
+Before requesting review, personally run these tasks in the application: create/find/edit/Inspect a person and organization; reopen known fields populated; change an organization to a person without automatic name splitting; save a single name and blank optional details; recover from invalid email/name errors; view standard History and Site history; verify a staff account without contact permission cannot access contact records. For payments, as a CRM Editor: import `tests/fixtures/paypal/activity.csv` and check the preview's counts and reasons, confirm, Inspect the refund, upload the same file again and see nothing to confirm, then import `activity-overlap.csv`. Fix confusing interactions directly instead of adding instructions.
 
 ## Tools, hooks and CI
 

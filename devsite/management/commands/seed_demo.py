@@ -33,6 +33,10 @@ class Command(BaseCommand):
         editors, _ = Group.objects.get_or_create(name="CRM Editors")
         editors.permissions.add(
             *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts"),
+            *Permission.objects.filter(
+                content_type__app_label="wagtail_crm_payments",
+                codename__in=["add_payment", "view_payment"],
+            ),
             Permission.objects.get(
                 content_type__app_label="wagtailadmin", codename="access_admin"
             ),
