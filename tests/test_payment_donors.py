@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import Client
 from django.urls import reverse
+from wagtail.models import ModelLogEntry
 
 from wagtail_crm.contacts.models import Contact
 from wagtail_crm.payments.models import REFUND_NOT_LINKED, Payment
@@ -165,7 +166,7 @@ def test_reimport_keeps_donor_links_and_amounts(editor, avery):
     assert (gift.donor, gift.charitable_amount) == (avery, Decimal("60.00"))
 
 
-def test_contact_chooser_searches_by_name_and_email(editor, avery):
+def test_contact_chooser_searches_by_name_and_email(editor, contact_editor, avery):
     Contact.objects.create(given_name="Blake", email="blake@example.org")
     url = reverse("wagtail_crm_contact_chooser:choose_results")
     by_name = editor.get(url, {"q": "aver"})
@@ -195,3 +196,23 @@ def test_refund_donor_is_refused_by_the_database(avery):
 
 def test_clean_without_a_gross_amount_does_not_crash():
     Payment(event_code="T0013", charitable_amount=Decimal(5)).clean()
+
+
+@pytest.mark.parametrize("name", ["choose", "choose_results", "chosen"])
+def test_contact_chooser_needs_contact_access(staff_user, avery, name):
+    client = Client()
+    client.force_login(staff_user)
+    args = [avery.pk] if name == "chosen" else []
+    response = client.get(reverse(f"wagtail_crm_contact_chooser:{name}", args=args))
+    assert response.status_code in (302, 403)
+    assert "Avery" not in response.content.decode()
+
+
+def test_contact_created_in_the_chooser_has_history(editor, contact_editor):
+    editor.post(
+        reverse("wagtail_crm_contact_chooser:create"),
+        {"kind": "person", "given_name": "Robin", "family_name": "New"},
+    )
+    robin = Contact.objects.get(display_name="Robin New")
+    entry = ModelLogEntry.objects.get(object_id=str(robin.pk))
+    assert (entry.action, entry.user) == ("wagtail.create", contact_editor)

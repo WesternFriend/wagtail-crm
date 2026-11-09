@@ -1,13 +1,22 @@
 from typing import override
 
 from django import forms
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Q
 from django.template.defaultfilters import linebreaksbr
+from django.views import View
 from wagtail.admin.forms.choosers import BaseFilterForm
-from wagtail.admin.views.generic.chooser import ChooseResultsView, ChooseView
+from wagtail.admin.views.generic.chooser import (
+    ChooseResultsView,
+    ChooseView,
+    ChosenView,
+    CreateView,
+)
 from wagtail.admin.views.generic.models import InspectView
 from wagtail.admin.viewsets.chooser import ChooserViewSet
 from wagtail.admin.viewsets.model import ModelViewSet
+from wagtail.log_actions import log
 
 from .forms import ContactForm
 from .models import Contact
@@ -68,12 +77,35 @@ class ContactSearchForm(BaseFilterForm):
         return objects
 
 
-class ContactChooseView(ChooseView):
+class ContactAccessMixin(View):
+    """Wagtail checks only "add" on the chooser's Create tab; listing and
+    choosing contacts need the same access as the Contacts menu."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.has_module_perms("wagtail_crm_contacts"):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+
+class ContactChooseView(ContactAccessMixin, ChooseView):
     filter_form_class = ContactSearchForm
 
 
-class ContactChooseResultsView(ChooseResultsView):
+class ContactChooseResultsView(ContactAccessMixin, ChooseResultsView):
     filter_form_class = ContactSearchForm
+
+
+class ContactChosenView(ContactAccessMixin, ChosenView):
+    pass
+
+
+class ContactChooserCreateView(CreateView):
+    # Wagtail's chooser saves without a log entry; the Contacts form logs one.
+    def save_form(self, form):
+        with transaction.atomic():
+            contact = super().save_form(form)
+            log(instance=contact, action="wagtail.create", content_changed=True)
+        return contact
 
 
 class ContactChooserViewSet(ChooserViewSet):
@@ -87,3 +119,5 @@ class ContactChooserViewSet(ChooserViewSet):
     creation_form_class = ContactForm
     choose_view_class = ContactChooseView
     choose_results_view_class = ContactChooseResultsView
+    chosen_view_class = ContactChosenView
+    create_view_class = ContactChooserCreateView
