@@ -34,7 +34,7 @@ mise exec -- uv run --locked python manage.py createsuperuser
 mise run dev
 ```
 
-People use Given name and Family name, either alone or both. An existing unsplit name uses one editable Name field; it is never parsed. Organizations use Name. Email and multiline postal address are optional. Standard Wagtail History records actions, users and times; deleted contact activity remains in Reports → Site history. A menu hook exposes that existing report to CRM staff without page permissions. A small Inspect extension preserves postal-address line breaks; other views use framework defaults.
+People use Given name and Family name, either alone or both. Organizations use Name. Changing an organization to a person requires staff-entered Given name and/or Family name; the organization name is never split automatically. Email and multiline postal address are optional. Standard Wagtail History records actions, users and times; deleted contact activity remains in Reports → Site history. A menu hook exposes that existing report to CRM staff without page permissions. A small Inspect extension preserves postal-address line breaks; other views use framework defaults.
 
 There is no bespoke audit model, snapshot display, migration-baseline entry or optimistic locking. Concurrent editing follows Wagtail last-save-wins; protection is deferred. Import/export mappings, complex name formatting, structured address editing and financial workflows remain later work.
 
@@ -60,9 +60,9 @@ mise run browser-install
 mise run browser
 ```
 
-`check` runs Ruff, mypy, actionlint, system checks and migration drift. `test` runs fast pytest/Django tests with coverage, excluding browser tests. Browser tests exercise real Wagtail login, person/organization creation and editing, optional details, validation recovery, unsplit and single names, search/Inspect/history, deletion activity and denied access. They use synthetic accounts and their own database; no separate server is needed. Linux may need `mise run browser-install -- --with-deps`. A managed Chromium can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Optional `CRM_SCREENSHOTS_DIR` saves a synthetic form screenshot; do not commit private data.
+`check` runs Ruff, mypy, actionlint, system checks and migration drift. `test` runs fast pytest/Django tests with coverage, excluding browser tests. Browser tests exercise real Wagtail login, person/organization creation and editing, optional details, validation recovery, contact-type changes and single names, search/Inspect/history, deletion activity and denied access. They use synthetic accounts and their own database; no separate server is needed. Linux may need `mise run browser-install -- --with-deps`. A managed Chromium can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Optional `CRM_SCREENSHOTS_DIR` saves a synthetic form screenshot; do not commit private data.
 
-Before requesting review, personally run these tasks in the application: create/find/edit/Inspect a person and organization; reopen known fields populated; edit an unsplit name without guessing; save a single name and blank optional details; recover from invalid email/name errors; view standard History and Site history; verify a staff account without contact permission cannot access contact records. Fix confusing interactions directly instead of adding instructions.
+Before requesting review, personally run these tasks in the application: create/find/edit/Inspect a person and organization; reopen known fields populated; change an organization to a person without automatic name splitting; save a single name and blank optional details; recover from invalid email/name errors; view standard History and Site history; verify a staff account without contact permission cannot access contact records. Fix confusing interactions directly instead of adding instructions.
 
 ## Tools, hooks and CI
 

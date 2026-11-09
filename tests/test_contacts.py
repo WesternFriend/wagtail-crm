@@ -39,25 +39,31 @@ def test_person_names_are_entered_once_and_reopen_populated(given, family, displ
     assert Contact._meta.app_label == "wagtail_crm_contacts"
 
 
-def test_unsplit_name_is_editable_and_never_guessed_apart():
-    contact = Contact.objects.create(name="  Pat Morgan  ")
-    form = ContactForm(instance=contact)
-    assert form["name"].value() == "  Pat Morgan  "
-    assert "given_name" not in form.fields
+@pytest.mark.parametrize(
+    ("given", "family"), [("Prince", ""), ("", "王"), ("Alex", "Example")]
+)
+def test_organization_to_person_requires_staff_entered_name(given, family):
+    contact = Contact.objects.create(kind="organization", name="Example Meeting")
+    form = ContactForm(instance=contact, data={"kind": "person"})
+    assert not form.is_valid()
+    assert form.errors["given_name"] == ["Enter a given name or family name."]
+    assert not form.fields["given_name"].disabled
+    assert not form.fields["family_name"].disabled
+    contact.refresh_from_db()
+    assert contact.kind == "organization"
+    assert contact.name == "Example Meeting"
     form = ContactForm(
         instance=contact,
-        data={"kind": "person", "name": "  Pat Morgan  ", "email": "pat@example.test"},
+        data=person(given_name=given, family_name=family, name="Example Meeting"),
     )
     assert form.is_valid(), form.errors
     form.save()
     contact.refresh_from_db()
-    assert contact.name == contact.display_name == "  Pat Morgan  "
-    assert not contact.given_name
-    assert not contact.family_name
-    form = ContactForm(instance=contact, data={"kind": "person", "name": "Pat Updated"})
-    assert form.is_valid(), form.errors
-    form.save()
-    assert contact.display_name == "Pat Updated"
+    assert contact.kind == "person"
+    assert contact.given_name == given
+    assert contact.family_name == family
+    assert contact.name == ""
+    assert contact.display_name == " ".join(part for part in (given, family) if part)
 
 
 @pytest.mark.parametrize(
@@ -111,7 +117,7 @@ def test_model_partial_save_keeps_display_name_derived(django_assert_num_queries
 def test_staff_without_contact_permissions_cannot_access_data(
     client, staff_user, action
 ):
-    contact = Contact.objects.create(name="Private Example")
+    contact = Contact.objects.create(given_name="Private Example")
     client.force_login(staff_user)
     args = [contact.pk] if action not in {"index", "add"} else []
     response = client.get(reverse(f"wagtail_crm_contacts:{action}", args=args))
@@ -121,7 +127,7 @@ def test_staff_without_contact_permissions_cannot_access_data(
 
 
 def test_unauthorized_posts_do_not_mutate_contacts(client, staff_user):
-    contact = Contact.objects.create(name="Private Example")
+    contact = Contact.objects.create(given_name="Private Example")
     client.force_login(staff_user)
     for action, args in (("add", []), ("edit", [contact.pk]), ("delete", [contact.pk])):
         response = client.post(
@@ -129,7 +135,7 @@ def test_unauthorized_posts_do_not_mutate_contacts(client, staff_user):
         )
         assert response.status_code == 302
     contact.refresh_from_db()
-    assert contact.name == "Private Example"
+    assert contact.given_name == "Private Example"
     assert Contact.objects.count() == 1
 
 
@@ -226,7 +232,7 @@ def test_view_only_user_can_inspect_but_cannot_write(client, staff_user):
             content_type__app_label="wagtail_crm_contacts", codename="view_contact"
         )
     )
-    contact = Contact.objects.create(name="View Example")
+    contact = Contact.objects.create(given_name="View Example")
     client.force_login(staff_user)
     assert (
         client.get(
@@ -241,7 +247,7 @@ def test_view_only_user_can_inspect_but_cannot_write(client, staff_user):
         == 302
     )
     contact.refresh_from_db()
-    assert contact.name == "View Example"
+    assert contact.given_name == "View Example"
 
 
 def test_site_history_and_exports_do_not_disclose_deleted_contacts(

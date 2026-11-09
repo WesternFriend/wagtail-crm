@@ -1,14 +1,12 @@
 # Contact-management architecture
 
-Approved simplification: 2026-11-08. This supersedes the earlier JSON name profile and custom history/revision design, retained only in Git history and historical review notes.
-
 ## AD-1 — One distribution, one Django app per domain
 
 One project and distribution package, `wagtail_crm`, contains domain apps labelled `wagtail_crm_<domain>`. Contacts lives in `wagtail_crm.contacts`, label `wagtail_crm_contacts`. Future finance/imports/letters may depend on contacts; contacts imports no sibling domain. Keep Contact-specific behavior here. No shared core, generic audit app or import-linter configuration is needed before another domain exists.
 
 ## AD-2 — Ordinary contact columns and forms
 
-Contact has kind, given_name, family_name, name, optional email/postal_address, UUID uid and derived stored display_name. The display uses name when present, otherwise the given/family values. People use Given name/Family name; an existing unsplit name uses Name. Organizations use Name. Never infer a split. Wagtail forms handle validation and retain entered work. A small script only shows/disables applicable fields. No name modes, codecs, components, formatting controls or correspondence routing.
+Contact has kind, given_name, family_name, name, optional email/postal_address, UUID uid and derived stored display_name. The display uses name when present, otherwise the given/family values. People always use Given name/Family name; organizations use Name. Changing to person requires staff-entered name parts and clears the organization Name after a valid save. Never infer a split. Wagtail forms handle validation and retain entered work. A small script only shows/disables applicable fields. No name modes, codecs, components, formatting controls or correspondence routing.
 
 ## AD-3 — Use Wagtail history and permissions
 

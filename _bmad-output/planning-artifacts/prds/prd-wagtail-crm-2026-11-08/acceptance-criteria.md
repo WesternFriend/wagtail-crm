@@ -69,13 +69,13 @@ All amounts here are synthetic USD unless stated. Numerical allocations are fixt
 
 ## AC-18 — Minimum contact management
 
-Approved by Brylie on 2026-11-08. These staff tasks supersede the earlier name-profile, formatting, custom-history and concurrency criteria. They do not approve imports, exports or financial workflows.
+Approved by Brylie; organization-to-person wording updated on 2026-11-09. These staff tasks supersede the earlier name-profile, formatting, custom-history and concurrency criteria. They do not approve imports, exports or financial workflows.
 
 | Case | Staff task | Observable result |
 | --- | --- | --- |
 | AC-18-01 | Add a person | Enter Given name, Family name, or both in one ordinary Wagtail form; single, multiword and non-Latin names work without duplicate entry. |
 | AC-18-02 | Add an organization | Enter one Name without person-name fields. |
-| AC-18-03 | Open an existing contact | Its recorded name remains intact and is never split automatically; an unsplit name is directly editable. |
+| AC-18-03 | Change an organization to a person | Enter a given name, family name, or both; the organization name is not split automatically. |
 | AC-18-04 | Edit a contact | Change name, contact type, optional email and postal address in one form; validation explains errors and retains entered work. |
 | AC-18-05 | Review activity | Use Wagtail History to identify actions, users and times. Activity for deleted contacts remains available through Wagtail Site history. |
 | AC-18-06 | Use restricted accounts | Accounts without contact permissions cannot view or change contacts. Wagtail's standard model permissions govern access. |

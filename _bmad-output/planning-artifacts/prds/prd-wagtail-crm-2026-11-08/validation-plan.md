@@ -74,8 +74,6 @@ Pilot subset completion and full annual completion are different outcomes. A cyc
 
 ## Development handoff — minimal contacts
 
-The earlier name-profile/custom-history walkthrough is superseded and remains in Git history. Validate the current six AC-18 tasks against ordinary columns and Wagtail's own actions/history, using a fresh synthetic database. This is developer UX evidence, not Editor acceptance or financial validation.
+Validate the six AC-18 tasks using ordinary fields and Wagtail's actions/history on a separate synthetic database. Include organization-to-person changes requiring staff-entered given/family names, single/multiword/non-Latin names, optional details, validation recovery, search/Inspect, retained deletion activity and permission denial. No automatic splitting or unsplit-person editor is supported.
 
-Developer checks passed: 30 fast tests with 94% coverage, five Chromium scenarios, check/hooks, fresh SQLite/PostgreSQL 15 migration and seed, 30 PostgreSQL tests and wheel isolation. Coverage includes person and organization creation/editing, single/multiword/non-Latin and unsplit names, optional correspondence, validation recovery, search/Inspect, stock activity and retained deletion logs, existing-contact type changes and restricted Site history/CSV access.
-
-A personal synthetic walkthrough in Brave on a Mac used an ordinary CRM Editor account without page permissions: person and organization creation/edit/Inspect, populated fields, a single non-Latin name, blank optional details, invalid-email recovery, search, standard History/Site history and unsplit-name editing. A separate account without contact permissions was denied access. Automated Chromium additionally checked deletion and type changes. Exact evidence and line counts are in `../../architecture/architecture-wagtail-crm-2026-11-08/FIRST-CONTACT-PR.md`. No Editor acceptance or operational financial validation is claimed.
+Record developer verification in PR #2 rather than duplicating its changing check counts here. Synthetic developer testing does not establish Editor acceptance or operational financial validation.

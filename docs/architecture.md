@@ -4,7 +4,7 @@
 
 One project and one distribution (`wagtail_crm`) contain one Django app per domain, labelled `wagtail_crm_<domain>`. Contacts is `wagtail_crm.contacts` (`wagtail_crm_contacts`). Later domains may depend on contacts; contacts imports no sibling domain. Do not introduce a shared core or generic audit app without a demonstrated need. There are no sibling domain apps yet, so import-linter adds no value at this stage.
 
-The initial contact slice uses plain columns and Wagtail ModelViewSet, standard actions, permissions, ModelLogEntry and History. Use framework features before bespoke models/views/templates. No JSON name codec, custom snapshots, RevisionMixin or concurrency layer is required. Other records and financial controls below are future architecture, not capabilities implemented by this slice.: first vertical slice
+The initial contact slice uses plain columns and Wagtail ModelViewSet, standard actions, permissions, ModelLogEntry and History. Use framework features before bespoke models/views/templates. No JSON name codec, custom snapshots, RevisionMixin or concurrency layer is required. Other records and financial controls below are future architecture, not capabilities implemented by this slice.
 
 For implemented contact semantics and fields, use the [accepted contact architecture spine](../_bmad-output/planning-artifacts/architecture/architecture-wagtail-crm-2026-11-08/ARCHITECTURE-SPINE.md). It supersedes contact-shape proposals here. Financial and deployment sections below remain proposals.
 

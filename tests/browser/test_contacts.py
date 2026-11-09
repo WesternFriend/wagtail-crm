@@ -144,28 +144,6 @@ class TestContactBrowser(StaticLiveServerTestCase):
             ).to_be_visible()
             expect(self.page.get_by_text("Deleted", exact=True)).to_be_visible()
 
-    def test_existing_unsplit_name_is_directly_editable(self):
-        self.allow_contacts()
-        contact = Contact.objects.create(name="Pat Morgan")
-        with self.browser_page():
-            self.login()
-            self.page.goto(
-                f"{self.live_server_url}{reverse('wagtail_crm_contacts:edit', args=[contact.pk])}"
-            )
-            expect(self.page.get_by_label("Given name", exact=True)).to_have_count(0)
-            expect(self.page.get_by_label("Name", exact=True)).to_have_value(
-                "Pat Morgan"
-            )
-            self.page.get_by_label("Name", exact=True).fill("")
-            self.page.get_by_role("button", name="Save", exact=True).click()
-            expect(self.page.get_by_text("Enter a name.", exact=True)).to_be_visible()
-            self.page.get_by_label("Name", exact=True).fill("Pat Updated")
-            self.page.get_by_role("button", name="Save", exact=True).click()
-        contact.refresh_from_db()
-        assert contact.name == "Pat Updated"
-        assert not contact.given_name
-        assert not contact.family_name
-
     def test_existing_contact_type_changes_use_ordinary_name_fields(self):
         self.allow_contacts()
         contact = Contact.objects.create(given_name="Type", family_name="Example")
@@ -183,19 +161,30 @@ class TestContactBrowser(StaticLiveServerTestCase):
             self.page.get_by_role("button", name="Save", exact=True).click()
             self.page.goto(url)
             self.page.get_by_label("Contact type").select_option("person")
-            expect(self.page.get_by_label("Given name", exact=True)).to_have_count(0)
-            expect(self.page.get_by_label("Name", exact=True)).to_have_value(
-                "Type Meeting"
-            )
+            expect(self.page.get_by_label("Given name", exact=True)).to_be_visible()
+            expect(self.page.get_by_label("Family name", exact=True)).to_be_visible()
+            expect(self.page.get_by_label("Name", exact=True)).to_be_hidden()
+            expect(self.page.get_by_label("Given name", exact=True)).to_have_value("")
+            expect(self.page.get_by_label("Family name", exact=True)).to_have_value("")
             self.page.get_by_role("button", name="Save", exact=True).click()
+            expect(
+                self.page.get_by_text("Enter a given name or family name.", exact=True)
+            ).to_be_visible()
+            self.page.get_by_label("Given name", exact=True).fill("Jordan")
+            self.page.get_by_role("button", name="Save", exact=True).click()
+            self.page.goto(url)
+            expect(self.page.get_by_label("Given name", exact=True)).to_have_value(
+                "Jordan"
+            )
+            expect(self.page.get_by_label("Family name", exact=True)).to_have_value("")
         contact.refresh_from_db()
         assert contact.kind == "person"
-        assert contact.name == "Type Meeting"
-        assert not contact.given_name
-        assert not contact.family_name
+        assert contact.name == ""
+        assert contact.given_name == "Jordan"
+        assert contact.family_name == ""
 
     def test_staff_without_contact_permissions_is_denied(self):
-        Contact.objects.create(name="Private Browser Example")
+        Contact.objects.create(given_name="Private Browser Example")
         with self.browser_page():
             self.login()
             expect(

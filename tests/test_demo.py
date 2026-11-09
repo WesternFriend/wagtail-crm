@@ -29,11 +29,12 @@ def test_demo_seed_is_disabled_outside_debug(settings):
     assert not Contact.objects.exists()
 
 
-def test_seed_does_not_overwrite_an_existing_unsplit_name(settings):
+def test_seed_does_not_overwrite_staff_edits(settings):
     settings.DEBUG = True
-    legacy = Contact.objects.create(name="Alex Example", email="alex@example.invalid")
+    contact = Contact.objects.create(
+        given_name="Edited", family_name="Contact", email="alex@example.invalid"
+    )
     call_command("seed_demo", verbosity=0)
-    legacy.refresh_from_db()
-    assert legacy.name == "Alex Example"
-    assert not legacy.given_name
-    assert not legacy.family_name
+    contact.refresh_from_db()
+    assert contact.given_name == "Edited"
+    assert contact.family_name == "Contact"

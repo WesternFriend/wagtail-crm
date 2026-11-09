@@ -12,9 +12,9 @@ Status: interview notes, 2026-11-08. These guide downstream design; they are not
 - Portability proposal: documented CSV or JSON, PDFs, retained evidence and manifest, preserving stable IDs and relationships while excluding active credentials/session secrets. Exact schema and verification procedure remain to be designed.
 - Current draft requirements/architecture/security notes provide background, not stakeholder approval or proof of implemented controls. Scaffold verification from earlier environments must not be treated as current validation.
 
-## Current contact-slice decisions — approved 2026-11-08
+## Current contact-slice decisions — approved through 2026-11-09
 
-Brylie approved the six staff-task AC-18 criteria and a smaller contact implementation. Use ordinary Given name/Family name, or one unsplit Name where structure is unknown; organizations use Name. Use Django/Wagtail built-ins for actions, permissions and history. Do not add custom snapshots, revisions, stale-edit/delete controls or a codec. There are no existing installations to migrate. Start the contacts domain app with one fresh initial migration and no baseline activity entries.
+Brylie approved the six staff-task AC-18 criteria and a smaller contact implementation. People always use ordinary Given name/Family name; organizations use Name. Changing organization to person requires staff-entered parts and never splits the organization name automatically. Use Django/Wagtail built-ins for actions, permissions and history. Do not add custom snapshots, revisions, stale-edit/delete controls or a codec. There are no existing installations to migrate. Start the contacts domain app with one fresh initial migration and no baseline activity entries.
 
 This supersedes the former JSON profile, repeated-component editor, separator/line-ending rules and custom history requirements. Standards remain references for a later concrete import/export workflow, not a storage or formatting contract for this increment. Shared contact details never confirm donor attribution. Source-account identity decisions, financial rules, letter snapshots and delivery remain future workflows.
 
