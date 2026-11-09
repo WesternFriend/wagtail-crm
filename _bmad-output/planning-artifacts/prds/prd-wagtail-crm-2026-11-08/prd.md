@@ -59,37 +59,39 @@ These responsibilities require confirmation. Account administration, updates, ba
 
 ## Minimum vertical slice requirements
 
-### Intake and coverage
+Each requirement names the 0.1.0 slice issue that delivers it, or is marked deferred. The staff tasks that accept it are in [acceptance-criteria.md](acceptance-criteria.md). A deferred requirement returns only when a real case shows it is needed.
 
-- **FR-01:** Import an agreed PayPal export through a repeatable staff-operated process. Repeated and overlapping records must not duplicate financial effects. Every imported record has an explained disposition.
-- **FR-02:** Bring in correspondence and subscription context through documented exports and targeted correction. Retain confirmed information across transactions and letters. Bulk contact import depends on observed volume. Routine operation must not require developer queries or widespread re-entry.
-- **FR-03:** Track confirmed coverage by source, account, and date range separately from reconciliation. Permit review and drafts while coverage is incomplete. Final donor issuance requires confirmed relevant coverage; unknown mailed gifts may prevent that confirmation. A limited acknowledgment requires explicit scope and wording approval.
-- **FR-04:** If mailed gifts are covered, capture them through an adequate CSV import or controlled entry after inspecting bookkeeping records. Retain donor, amount/currency, policy-relevant date, method, stable source reference, confirmation, allocation context, and entry/review actors. Preserve private evidence references and duplicate warnings. Use the same downstream workflow as processor records.
-- **FR-20:** Account for rejected or unsupported rows without silent omission: retain an authorized source/row reference, reason, and resolution state. Show whether an import was staged, applied, failed, or remains uncertain after interruption. Retrying must not duplicate financial effects or overwrite reviewed decisions. Exact application boundaries and duplicate identity rules require documented adapter evidence and acceptance cases before implementation is accepted.
+### Intake
+
+- **FR-01 (#5):** Staff import a PayPal Activity Download CSV after previewing it. A repeated file is rejected, and an overlapping file adds only new transactions.
+- **FR-20 (#5):** Rows that are not imported stay visible with the reason. A failed import leaves nothing imported. Recovery from an interrupted import is deferred.
+- **FR-02 (#6):** Staff create or choose the donor contact while linking a payment. Bulk contact import is deferred until volume shows a need.
+- **FR-03:** Deferred. Tracking source coverage by account and date range.
+- **FR-04:** Deferred. Mailed or other offline gifts, pending the coverage decision in roadmap step 0.
 
 ### Donor and financial review
 
-- **FR-05:** Compare candidate contacts with payer identity, source identifiers, transaction references, and confirmed relationships. Names and emails support suggestions; ambiguity requires confirmation. Donor attribution remains distinct from gift-recipient identity.
-- **FR-06:** Preserve source references automatically for routine confirmations. Discrepancies require supporting evidence and explanation. Unresolved attribution requires escalation to the bookkeeper or donor through an established contact route.
-- **FR-07:** Present payments, donor, gross, separate fees, charitable amount, derived noncharitable remainder, and review state, with source, subscription, and refund details available.
-- **FR-08:** Approved rules may suggest allocations; record the applicable policy/version. Patron splits require historical plan and approved valuation evidence. Missing policy creates an exception. Overrides require explanation and appropriate financial review. Enforce amount bounds through every supported write path.
-- **FR-09:** Preserve prior evidence and decisions. Changes record actor, time, changed values, rationale, and supporting evidence. Reimports preserve staff decisions and flag material conflicts. Material attribution, amount, or benefit changes reopen affected approvals; minor contact changes do not reopen unrelated financial review. Mixed-payment refunds require an approved rule or explicit financial review.
+- **FR-05 (#6):** Staff link each payment to a donor themselves. The PayPal payer name and email stay visible; contacts are never matched, merged or renamed automatically.
+- **FR-06:** Merged into FR-05. Escalating disputed attribution is deferred.
+- **FR-07 (#5, #6, #7):** The payment list and payment screen show date, payer, gross, fee, net, currency, status, donor, charitable amount and its non-charitable remainder, and any linked refund.
+- **FR-08 (#6):** Staff enter the charitable amount, from zero up to the gross. Allocation rules and policy versions are deferred.
+- **FR-09 (#6, #7):** Wagtail History records changes to donor links and charitable amounts. A refund is linked to its payment, and an unmatched refund is listed for review. Reopening approvals after a change is deferred.
 
-### Approval, issuance, and distribution
+### Reconciliation, issuance and distribution
 
-- **FR-21:** Provide an explicit reconciliation review for an identified dataset version and scope. Compare source counts and monetary totals with authoritative comparison records, distinguishing gross, fees, net, refunds, reviewed charitable amounts, noncharitable amounts, and currencies rather than treating them as interchangeable totals. Explain every record disposition and difference with evidence. Record reviewer, time, scope, comparison references, and unresolved differences. Acceptance requires zero unexplained differences; any explained difference still needs authorized treatment. Reconciliation does not establish source completeness. Material changes reopen affected reconciliation and dependent approvals. The exact comparison procedure and authority remain stakeholder decisions.
-- **FR-10:** Preview the exact letter with correspondence details, period, itemized contributions, benefits, total, and signatory. Provide private evidence explaining coverage, payments, allocations, and refunds.
-- **FR-11:** Summarize coverage, reconciliation, ready/blocked donors, exclusions/reasons, missing delivery details, and the exact proposed batch. Support individual exception review and explicit version-bound batch approval of routine ready letters. Record actor, time, scope, and versions. Content changes reopen letter approval; financial changes reopen affected financial approval.
-- **FR-12:** Preserve issued letters and distribution history. Content corrections create linked, newly approved revisions. Corrective dispatch is explicit; retrying an unchanged letter creates another attempt.
-- **FR-22:** Issuance must identify the approved document versions and its outcome. Repeated or interrupted requests must not silently create duplicate issuance or dispatch. Staff can determine which letters were issued and safely resolve pending/failed outcomes. Define the issuance event, recovery behavior, and handling of superseded versions awaiting dispatch before accepting the issuance increment; detailed proposals and open decisions are in `acceptance-criteria.md`.
-- **FR-13:** Provide downloadable, printable PDFs and a manifest for external delivery, including manual email through existing tools. Dispatch records identify version, channel, destination, date, actor, and available evidence reference. A staff attestation is not proof of receipt. Generation/download never records dispatch, including when the PDF is intended for manual email. Exact delivery practice still needs Editor confirmation.
-- **FR-14:** Keep failed delivery and missing destinations visible. Distinguish fully distributed from closed with accepted distribution exceptions. Follow-up and closure authority require agreement. Distribution exceptions cannot bypass coverage, attribution, or financial gates.
+- **FR-21 (#8):** For a chosen period, staff compare the imported count, gross, fees, net and refunds with the totals they enter from PayPal, and accept the reconciliation. Letters for the period cannot be issued before acceptance.
+- **FR-10 (#9):** Staff preview a donor's letter for a period with name, address, each contribution and the total, using a plain template.
+- **FR-11:** Deferred. Letters are issued one at a time, with no batch approval.
+- **FR-12 (#9):** An issued letter keeps its PDF and values when contacts or payments change later. A correction is a new letter linked to the earlier one.
+- **FR-22:** Deferred. Recovery from an interrupted or repeated issuance.
+- **FR-13 (#10):** Staff download an issued PDF and record each dispatch with channel, date, outcome and note. Downloading does not count as sent.
+- **FR-14 (#10):** Staff can list letters that are unsent or whose sending failed. Closing a cycle with delivery exceptions is deferred.
 
-### Privacy, usability, and continuity
+### Privacy, usability and continuity
 
-- **FR-15:** Grant explicit CRM permissions independently of website accounts, with separate sensitive capabilities for exports, issuance, and account management. Protect evidence, letters, exports, and backups. Trust privileged infrastructure operators explicitly.
-- **FR-16:** Export the complete retained organizational record: contacts/identities, payments/refunds/allocations, evidence/references, policies/reviews, letters/revisions, approvals/audit, and distribution attempts. Preserve relationships, stable IDs, currencies, and dates in documented CSV or JSON plus PDFs/evidence and a manifest. History must be understandable without running the CRM. Exclude active credentials and session secrets.
-- **FR-17:** Guide routine work with a short workflow, everyday labels, useful next actions, explained calculations and blocks, preserved entered work, and low-effort confirmations. Keep evidence/history accessible. Explain when to involve finance. Validate through the Editor's asynchronous task evidence, supplemented by live observation when practical.
+- **FR-15 (#5–#10):** Wagtail's standard model permissions control who can view and change payments, reconciliations and letters, including direct URLs and PDFs.
+- **FR-16:** Deferred. Portable export of the full record. Backups with a tested restore are covered by #13.
+- **FR-17 (#11):** The Editor runs one synthetic cycle end to end and confirms the workflow fits their real work.
 
 ## Readiness and success evidence
 
@@ -99,7 +101,7 @@ These responsibilities require confirmation. Account administration, updates, ba
 - Repeat imports create no duplicate effects; corrections preserve prior issuance.
 - Editor and bookkeeper verify known gifts, mixed payments, ambiguous donors, and refunds against independently established expectations.
 - Editor completes representative routine work without developer help, understands amounts and unresolved work, distinguishes draft, approved, and dispatched letters, and recognizes appropriate financial escalation. Demonstrate this primarily through asynchronous testing, with live observation supplementary when practical.
-- Verify unauthorized-access prevention, complete portable exports, and successful recovery before operational use.
+- Verify unauthorized-access prevention and successful recovery before operational use.
 - Supported pilot has onboarding, written guidance, named help contact and availability, and named operational owners.
 
 Measure current effort before setting a time-saving target. Guardrails include wrong attribution or amounts, silent omissions, duplicate letters, disclosure, and repeated manual re-entry. Coverage and correctness must not be traded for speed.
@@ -116,9 +118,9 @@ Future enhancement: email issued PDFs directly from the CRM to save the Editor a
 
 Installations may be maintained by nonprofit technical staff, capable volunteers, consultants, or eventually hosting providers. After setup, the Editor operates through the interface with occasional technical support. Affordability includes hosting, maintenance, support, training, and staff time; no cost target is established.
 
-- **FR-18:** Authorized staff can manage organization details, supported reporting settings, correspondence preferences, controlled letter content, and supported role assignments. Financial amounts derive from reviewed records, not editable letter prose.
-- **FR-19:** Supported allocation policies use understandable validated options, effective dates, and approval history. A designated financial reviewer approves policy versions; configuration alone does not establish approval. The Editor applies approved policies. Preserve the versions used for issued documents.
-- **NFR-01:** Provide documented installation, supported dependencies, predictable upgrade guidance, tested backup/recovery, and maintainer handover guidance. Routine cycles in a supported setup must not require recurring custom patches, database repairs, or developer intervention.
+- **FR-18:** Deferred. Staff-managed organization and letter settings; 0.1.0 uses a plain template (#9).
+- **FR-19:** Deferred. Allocation policy versions and their approval history.
+- **NFR-01 (#13):** Provide documented installation, supported dependencies and tested backup and restore. Upgrade guidance and maintainer handover are deferred until after the pilot. Routine cycles in a supported setup must not require recurring custom patches, database repairs, or developer intervention.
 - **NFR-02:** Support keyboard operation, readable content at increased zoom, clear labels and actionable errors, and status explanations that do not depend on color. Initial UX and browser validation target desktop use on the Editor's Mac; exact browser, OS, display, and accessibility preferences require confirmation.
 
 ## Pilot learning and collaboration
