@@ -143,15 +143,9 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
     if reason:
         return reason
 
-    amounts = {}
-    for column in ("Gross", "Fee", "Net"):
-        value = row[column].strip()
-        if not AMOUNT.fullmatch(value):
-            return f"Malformed {column}: {value or '(blank)'}"
-        amount = Decimal(value.replace(",", ""))
-        if abs(amount) >= AMOUNT_LIMIT:
-            return f"{column} is too large: {value}"
-        amounts[column] = amount
+    amounts = _amounts(row)
+    if isinstance(amounts, str):
+        return amounts
 
     zone = TIME_ZONES.get(row["TimeZone"].strip())
     if zone is None:
@@ -180,6 +174,25 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
         reference_transaction_id=row["Reference Txn ID"].strip(),
     )
     return _too_long(payment) or payment
+
+
+def _amounts(row: dict[str, str]) -> dict[str, Decimal] | str:
+    """Parse Gross, Fee and Net, or return why the row is skipped."""
+    amounts = {}
+    for column in ("Gross", "Fee", "Net"):
+        value = row[column].strip()
+        if not AMOUNT.fullmatch(value):
+            return f"Malformed {column}: {value or '(blank)'}"
+        amount = Decimal(value.replace(",", ""))
+        if abs(amount) >= AMOUNT_LIMIT:
+            return f"{column} is too large: {value}"
+        amounts[column] = amount
+    # Money received is positive and refunds negative; a positive refund
+    # would increase the gift it adjusts.
+    impact = row[BALANCE_IMPACT].strip()
+    if (amounts["Gross"] > 0) != (impact == "Credit"):
+        return f"Gross {row['Gross'].strip()} does not match {impact}"
+    return amounts
 
 
 def _too_long(payment: Payment) -> str | None:

@@ -142,3 +142,12 @@ def test_list_query_count_does_not_grow_with_payments(editor):
     import_file(editor, "activity.csv")
     assert Payment.objects.count() == 10
     assert count_queries() == few
+
+
+def test_inspect_links_to_inspect_pages(imported):
+    website = by_id("1AA00000000000004")
+    refund = by_id("1AA00000000000005")
+    inspect = reverse("wagtail_crm_payments:inspect", args=[website.pk])
+    content = imported.get(inspect).content.decode()
+    assert reverse("wagtail_crm_payments:inspect", args=[refund.pk]) in content
+    assert reverse("wagtail_crm_payments:edit", args=[refund.pk]) not in content

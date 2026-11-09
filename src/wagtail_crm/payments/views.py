@@ -1,4 +1,5 @@
 import hashlib
+from decimal import Decimal
 
 import django_filters
 from django import forms
@@ -160,8 +161,12 @@ class PaymentIndexView(IndexView):
         return super().get_base_queryset().with_refunded()
 
 
-def refunds_html(payment):
-    """A payment's refunds, or a refund's original, with links."""
+def refunds_html(payment, action):
+    """A payment's refunds, or a refund's original, linked to `action` pages.
+
+    Sets the payment's refunded total from the listed refunds, so the
+    adjusted amount shown with them uses the same rows.
+    """
     if payment.is_refund:
         original = payment.refunded_payment
         if original is None:
@@ -172,11 +177,12 @@ def refunds_html(payment):
             )
         return format_html(
             'Refund of <a href="{}">{}</a>. {}',
-            reverse("wagtail_crm_payments:edit", args=[original.pk]),
+            reverse(f"wagtail_crm_payments:{action}", args=[original.pk]),
             original,
             REFUND_NOT_LINKED,
         )
-    refunds = payment.refunds
+    refunds = list(payment.refunds)
+    payment.refunded = sum((r.gross for r in refunds), Decimal(0)) if refunds else None
     if not refunds:
         return "No refunds"
     return format_html_join(
@@ -184,7 +190,7 @@ def refunds_html(payment):
         '<a href="{}">{} on {}</a>',
         (
             (
-                reverse("wagtail_crm_payments:edit", args=[refund.pk]),
+                reverse(f"wagtail_crm_payments:{action}", args=[refund.pk]),
                 refund.gross,
                 date_format(localtime(refund.occurred_at)),
             )
@@ -205,14 +211,14 @@ class RefundsPanel(Panel):
 
         def get_context_data(self, parent_context=None):
             context = super().get_context_data(parent_context)
-            context["refunds"] = refunds_html(self.instance)
+            context["refunds"] = refunds_html(self.instance, "edit")
             context["payment"] = self.instance
             return context
 
 
 class PaymentInspectView(InspectView):
     def get_refunds_display_value(self):
-        return refunds_html(self.object)
+        return refunds_html(self.object, "inspect")
 
 
 class PaymentViewSet(ModelViewSet):
