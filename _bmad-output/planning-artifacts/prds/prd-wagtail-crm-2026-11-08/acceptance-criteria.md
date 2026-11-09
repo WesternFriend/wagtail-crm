@@ -64,4 +64,4 @@ Use established contact standards when a concrete import/export workflow needs m
 
 ## Development increments versus release completion
 
-Use these criteria to bound implementation increments. An increment can be accepted for its defined synthetic behavior while real policy remains unresolved, provided that limitation is explicit and real issuance stays unavailable. A passing component test, balanced PayPal dataset or generated PDF does not complete the operational cycle. Full release acceptance requires the agreed coverage, financial, communication, distribution, privacy, usability and continuity evidence in the PRD and validation plan.
+Use these criteria to bound implementation increments. An increment can be accepted for its defined synthetic behavior while real policy remains unresolved, provided that limitation is explicit and real issuance stays unavailable. A passing component test, balanced PayPal dataset or generated PDF does not complete the operational cycle. Full release acceptance requires the agreed coverage, financial, communication, distribution, privacy, usability and continuity evidence in the [PRD](prd.md).

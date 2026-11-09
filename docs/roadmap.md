@@ -14,25 +14,21 @@ The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) 
 
 Review a sanitized PayPal activity export and an approved historical letter. Confirm the period, reporting timezone/date basis, covered source accounts, historical patron mappings, refund treatment, and delivery workflow. Determine whether mailed gifts or other channels must be included.
 
-Record decisions in the [product requirements](product-requirements.md). Raw donor files remain private and must not be attached to public repository discussions. Synthetic fixtures should reproduce their structure and edge cases.
+Record decisions in the [PRD](../_bmad-output/planning-artifacts/prds/prd-wagtail-crm-2026-11-08/prd.md). Raw donor files remain private and must not be attached to public repository discussions. Synthetic fixtures should reproduce their structure and edge cases.
 
 Exit evidence: a documented import schema, synthetic sample dataset, approved allocation examples, letter requirements, and explicit coverage limitations. Framework scaffolding may proceed while these decisions are resolved.
 
 ## 1. Import and inspect payments securely
 
-Create the Django/Wagtail project with pinned compatible dependencies, separate environment configuration, explicit CRM capabilities, and private storage. Add source accounts, staged import batches, source observations, and normalized incoming payment records.
+Staff upload a PayPal Activity Download CSV, preview the rows to import and the rows skipped with a reason, and confirm; all new rows are saved in one transaction or none (#5). Transaction ID is the identity, so repeated and overlapping files add only new payments. Imported values are read-only in a Wagtail payment list.
 
-Implement one PayPal CSV adapter and a staff preview/confirmation workflow. Include validation, same-file and overlapping-file duplicate detection, changed-status handling, reconciliation counts, and an inspectable payment list. Imports apply atomically and retain row-level evidence.
-
-Exit evidence: repeat and concurrent imports cannot duplicate payments; malformed and unsupported records stay visible; unauthorized users cannot access records or import artifacts.
+Exit evidence: repeat and concurrent imports cannot duplicate payments; skipped rows are explained in the preview; unauthorized users cannot see or import payments.
 
 ## 2. Resolve donors and charitable allocations
 
-Add person/organization contacts, source identity links, the transaction review table, reviewed allocation rules, and an audit trail. Support mixed payments, documented non-donation decisions, and linked refund review. Preserve the difference between source facts, suggestions, and confirmed staff decisions.
+Staff link each payment to a donor contact and record its charitable amount, from zero to the gross (#6). Refunds are linked to their original payment and unmatched refunds are listed (#7). For a chosen period, staff compare imported totals with PayPal's and accept the reconciliation (#8).
 
-Add the review queue and period reconciliation dashboard. Test the same normalization contract with synthetic records from an alternative source without implementing another production processor.
-
-Exit evidence: the synthetic acceptance dataset reconciles; invalid allocations fail on every write path; ambiguous donors, source conflicts, and refunds block affected issuance.
+Exit evidence: the synthetic acceptance dataset reconciles; invalid charitable amounts fail on every write path; payments without a charitable amount and unmatched refunds block reconciliation acceptance.
 
 ## 3. Preview and issue annual acknowledgments
 

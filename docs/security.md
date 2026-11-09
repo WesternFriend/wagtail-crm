@@ -10,6 +10,8 @@ The public website is a separate application. Its process must not receive CRM d
 
 Separate databases and restricted roles may share a database server. Shared host or infrastructure administrator access remains a common risk, and containers share host-level dependencies. The hosting design must document which compromises it is intended to contain.
 
+The CRM keeps external references to website orders, accounts and subscriptions rather than foreign keys or required imports into the website's models, and needs no access to the website database. One nonprofit per installation is the first scope; Wagtail's site selection is not a tenant authorization boundary, so shared multi-organization hosting needs its own design and isolation tests.
+
 The PayPal export is untrusted input, even when uploaded by a trusted staff member. Donor names, notes, and addresses are untrusted text. Wagtail content-editing access does not automatically authorize CRM access. Technical superusers and infrastructure administrators remain privileged operators, not actors this application can fully constrain.
 
 ## Initial capability model

@@ -54,9 +54,9 @@ The target is one nonprofit per installation, a separate staff application, and 
 
 | Document | Purpose |
 | --- | --- |
-| [Product requirements](docs/product-requirements.md) | User workflow, scope, acceptance scenarios, and open policy decisions |
+| [Product requirements](_bmad-output/planning-artifacts/prds/prd-wagtail-crm-2026-11-08/prd.md) | Requirements, acceptance criteria, and open policy decisions |
 | [Development and testing](docs/development.md) | Runnable host, SQLite setup, manual UI checks, and browser tests |
-| [Architecture](docs/architecture.md) | Core records, adapter contract, and financial invariants |
+| [Architecture](docs/architecture.md) | Where architecture decisions and deployment boundaries are recorded |
 | [Security](docs/security.md) | Trust boundaries, permissions, private artifacts, and release checks |
 | [Roadmap](docs/roadmap.md) | Implementation increments and evidence needed for the first operational run |
 
