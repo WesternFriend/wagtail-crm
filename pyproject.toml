@@ -14,6 +14,8 @@ dependencies = [
     "Django>=6.1.3,<6.2",
     "wagtail>=8.1,<8.2",
     "dj-database-url>=2.3,<4",
+    # Imported directly for the payment list filters; Wagtail's own filters use it.
+    "django-filter>=23.3",
 ]
 
 [project.optional-dependencies]
@@ -90,7 +92,14 @@ warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
 # These Wagtail dependencies do not publish typing information either.
-module = ["wagtail.*", "treebeard.*", "modelsearch.*", "modelcluster.*", "taggit.*"]
+module = [
+    "wagtail.*",
+    "treebeard.*",
+    "modelsearch.*",
+    "modelcluster.*",
+    "taggit.*",
+    "django_filters.*",
+]
 ignore_missing_imports = true
 
 [tool.django-stubs]

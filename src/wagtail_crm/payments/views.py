@@ -1,11 +1,14 @@
 import hashlib
 
+import django_filters
 from django import forms
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import FormView
+from wagtail.admin.filters import WagtailFilterSet
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel
 from wagtail.admin.views.generic.base import WagtailAdminTemplateMixin
 from wagtail.admin.views.generic.models import IndexView
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
@@ -114,6 +117,28 @@ class PaypalImportView(PermissionCheckedMixin, WagtailAdminTemplateMixin, FormVi
         return redirect(self.index_url_name)
 
 
+class PaymentFilterSet(WagtailFilterSet):
+    needs_donor = django_filters.BooleanFilter(
+        label="Needs donor", method="filter_needs", field_name="donor"
+    )
+    needs_charitable_amount = django_filters.BooleanFilter(
+        label="Needs charitable amount",
+        method="filter_needs",
+        field_name="charitable_amount",
+    )
+
+    class Meta:
+        model = Payment
+        fields = ["type"]
+
+    def filter_needs(self, queryset, name, value):
+        if value is None:
+            return queryset
+        blank = {f"{name}__isnull": True}
+        received = queryset.exclude_refunds()
+        return received.filter(**blank) if value else received.exclude(**blank)
+
+
 class PaymentIndexView(IndexView):
     add_item_label = "Import PayPal CSV"
 
@@ -131,14 +156,14 @@ class PaymentViewSet(ModelViewSet):
         "occurred_at",
         "name",
         "email",
+        "donor",
         "gross",
+        "charitable_amount",
+        "non_charitable_amount",
         "fee",
-        "net",
-        "currency",
         "status",
-        "transaction_id",
     )
-    list_filter = ("type",)
+    filterset_class = PaymentFilterSet
     search_fields = ("name", "email", "transaction_id")
     inspect_view_enabled = True
     inspect_view_fields = (
@@ -154,10 +179,40 @@ class PaymentViewSet(ModelViewSet):
         "net",
         "transaction_id",
         "reference_transaction_id",
+        "donor",
+        "charitable_amount",
+        "non_charitable_amount",
     )
     copy_view_enabled = False
-    # Imported fields are read-only; #6 adds the donor and charitable amount.
-    form_fields: list[str] = []
+    panels = (
+        MultiFieldPanel(
+            [
+                FieldRowPanel(
+                    [
+                        FieldPanel("name", read_only=True),
+                        FieldPanel("email", read_only=True),
+                    ]
+                ),
+                FieldRowPanel(
+                    [
+                        FieldPanel("gross", read_only=True),
+                        FieldPanel("fee", read_only=True),
+                        FieldPanel("net", read_only=True),
+                    ]
+                ),
+                FieldRowPanel(
+                    [
+                        FieldPanel("occurred_at", read_only=True),
+                        FieldPanel("type", read_only=True),
+                        FieldPanel("transaction_id", read_only=True),
+                    ]
+                ),
+            ],
+            heading="From PayPal",
+        ),
+        FieldPanel("donor"),
+        FieldPanel("charitable_amount"),
+    )
 
     @property
     def add_view(self):

@@ -122,15 +122,11 @@ def test_file_that_is_not_paypal_activity_is_rejected(editor):
     assert "Save the file as a UTF-8 CSV" in response.content.decode()
 
 
-def test_inspect_shows_source_facts_and_edit_has_no_fields(editor, admin_client):
+def test_inspect_shows_source_facts(editor):
     confirm(editor, upload(editor))
     refund = Payment.objects.get(transaction_id="1AA00000000000005")
     inspect = editor.get(reverse("wagtail_crm_payments:inspect", args=[refund.pk]))
     assert "1AA00000000000004" in inspect.content.decode()
-    # Until #6 there is nothing to edit; the stock Edit page still renders.
-    edit = admin_client.get(reverse("wagtail_crm_payments:edit", args=[refund.pk]))
-    assert edit.status_code == 200
-    assert edit.context["form"].fields == {}
 
 
 @pytest.mark.parametrize(
@@ -170,12 +166,10 @@ def test_staff_without_payment_permissions_are_denied(staff_user, url):
     assert Payment.objects.count() == 1
 
 
-def test_editor_cannot_change_or_delete_payments(editor):
+def test_editor_cannot_delete_payments(editor):
     confirm(editor, upload(editor))
-    pk = Payment.objects.first().pk
-    for name in ("edit", "delete"):
-        url = reverse(f"wagtail_crm_payments:{name}", args=[pk])
-        assert editor.post(url).status_code in (302, 403)
+    url = reverse("wagtail_crm_payments:delete", args=[Payment.objects.first().pk])
+    assert editor.post(url).status_code in (302, 403)
     assert Payment.objects.count() == 6
 
 

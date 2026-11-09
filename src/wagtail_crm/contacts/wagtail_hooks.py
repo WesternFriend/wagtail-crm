@@ -2,12 +2,17 @@ from django.urls import reverse
 from wagtail import hooks
 from wagtail.admin.menu import MenuItem
 
-from .views import ContactViewSet
+from .views import ContactChooserViewSet, ContactViewSet
 
 
 @hooks.register("register_admin_viewset")
 def register_contacts_viewset():
     return ContactViewSet("wagtail_crm_contacts")
+
+
+@hooks.register("register_admin_viewset")
+def register_contact_chooser_viewset():
+    return ContactChooserViewSet("wagtail_crm_contact_chooser")
 
 
 @hooks.register("construct_reports_menu")

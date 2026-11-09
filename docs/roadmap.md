@@ -8,7 +8,7 @@ The goal of the first release is one completed, reconciled acknowledgment cycle 
 
 The repository includes a runnable `devsite` host with SQLite and the `wagtail_crm.contacts` domain app in one reusable distribution. It has a minimal person/organization Contact model, Wagtail model views, a synthetic seed command, permission and CSRF tests, and a real-browser smoke suite. See [Development and testing](development.md) for commands and the manual UI checklist.
 
-The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5); donor linking, refunds and reporting are not implemented yet. Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
+The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) and lets staff link each payment to a donor with its charitable amount (#6); refunds and reporting are not implemented yet. Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
 
 ## 0. Confirm the first reporting cycle
 
