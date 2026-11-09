@@ -104,7 +104,7 @@ These responsibilities require confirmation. Account administration, updates, ba
 
 Measure current effort before setting a time-saving target. Guardrails include wrong attribution or amounts, silent omissions, duplicate letters, disclosure, and repeated manual re-entry. Coverage and correctness must not be traded for speed.
 
-See `acceptance-criteria.md` for draft gate dependencies, invalidation rules, concrete synthetic examples, evidence requirements, and decisions needed before each capability can be accepted. These refine acceptance precision without approving financial policy or named authority. A Contacts screen, importer, or PDF generator alone is a development increment, not completion of this operational release.
+See `acceptance-criteria.md` for the staff-task acceptance criteria of each 0.1.0 slice, the items deferred from it, and decisions needed before each capability can be accepted. These do not approve financial policy or named authority. A Contacts screen, importer, or PDF generator alone is a development increment, not completion of this operational release.
 
 ## Deferred scope
 
