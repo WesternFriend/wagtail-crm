@@ -188,9 +188,9 @@ def test_database_refuses_invalid_decisions_from_any_writer(values):
 
 
 def test_refund_donor_is_refused_by_the_database(avery):
-    refund = payment(gross="-20.00", fee="0.59")
+    refund = Payment.objects.filter(pk=payment(gross="-20.00", fee="0.59").pk)
     with pytest.raises(IntegrityError), transaction.atomic():
-        Payment.objects.filter(pk=refund.pk).update(donor=avery)
+        refund.update(donor=avery)
 
 
 def test_clean_without_a_gross_amount_does_not_crash():
