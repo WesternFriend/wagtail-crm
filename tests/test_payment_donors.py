@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, transaction
 from django.test import Client
 from django.urls import reverse
 
@@ -66,10 +67,13 @@ def test_fee_does_not_reduce_the_charitable_amount(editor, avery):
     assert "100.00" in listing
 
 
-def test_non_charitable_remainder_is_gross_minus_charitable():
-    subscription = payment(gross="90.00", fee="-2.91", charitable_amount="0")
+@pytest.mark.parametrize(
+    ("charitable", "remainder"), [("30.00", "60.00"), ("0", "90.00")]
+)
+def test_non_charitable_remainder_is_gross_minus_charitable(charitable, remainder):
+    subscription = payment(gross="90.00", fee="-2.91", charitable_amount=charitable)
     subscription.refresh_from_db()
-    assert subscription.non_charitable_amount == Decimal("90.00")
+    assert subscription.non_charitable_amount == Decimal(remainder)
 
 
 @pytest.mark.parametrize(
@@ -152,7 +156,11 @@ def test_reimport_keeps_donor_links_and_amounts(editor, avery):
     editor.post(IMPORT_URL, {"confirm": "", "digest": preview.context["digest"]})
     gift = Payment.objects.get(transaction_id="1AA00000000000001")
     edit(editor, gift, avery, "60.00")
-    editor.post(IMPORT_URL, {"file": SimpleUploadedFile("a.csv", data)})
+    # The overlapping file repeats this gift alongside new payments.
+    overlap = (FIXTURES / "activity-overlap.csv").read_bytes()
+    preview = editor.post(IMPORT_URL, {"file": SimpleUploadedFile("b.csv", overlap)})
+    editor.post(IMPORT_URL, {"confirm": "", "digest": preview.context["digest"]})
+    assert Payment.objects.count() == 8
     gift.refresh_from_db()
     assert (gift.donor, gift.charitable_amount) == (avery, Decimal("60.00"))
 
@@ -164,3 +172,26 @@ def test_contact_chooser_searches_by_name_and_email(editor, avery):
     assert list(by_name.context["results"]) == [avery]
     by_email = editor.get(url, {"q": "blake@"})
     assert [str(c) for c in by_email.context["results"]] == ["Blake"]
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"charitable_amount": "100.01"},
+        {"charitable_amount": "-1"},
+        {"gross": "-20.00", "fee": "0.59", "charitable_amount": "0"},
+    ],
+)
+def test_database_refuses_invalid_decisions_from_any_writer(values):
+    with pytest.raises(IntegrityError), transaction.atomic():
+        payment(**values)
+
+
+def test_refund_donor_is_refused_by_the_database(avery):
+    refund = payment(gross="-20.00", fee="0.59")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Payment.objects.filter(pk=refund.pk).update(donor=avery)
+
+
+def test_clean_without_a_gross_amount_does_not_crash():
+    Payment(event_code="T0013", charitable_amount=Decimal(5)).clean()

@@ -6,7 +6,10 @@ from django.db import models
 
 from wagtail_crm.contacts.models import Contact
 
-# Refunds are matched to their original payment in a later slice (#7).
+# PayPal event codes T11xx are refunds and reversals; the importer takes them
+# only as debits. Refunds are matched to their original payment later (#7).
+REFUND_EVENT_CODE = "T11"
+IS_REFUND = models.Q(event_code__startswith=REFUND_EVENT_CODE)
 REFUND_NOT_LINKED = (
     "A refund isn't linked to a donor. It is matched to its original payment."
 )
@@ -15,7 +18,7 @@ REFUND_NOT_LINKED = (
 class PaymentQuerySet(models.QuerySet):
     def exclude_refunds(self):
         """The counterpart of Payment.is_refund."""
-        return self.exclude(gross__lt=0)
+        return self.exclude(IS_REFUND)
 
 
 class Payment(models.Model):
@@ -58,13 +61,32 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ["-occurred_at", "-pk"]
+        # clean() gives staff the field errors; these hold on every write.
+        constraints = [
+            models.CheckConstraint(
+                condition=~IS_REFUND
+                | models.Q(donor__isnull=True, charitable_amount__isnull=True),
+                name="payment_refund_not_linked",
+                violation_error_message=REFUND_NOT_LINKED,
+            ),
+            models.CheckConstraint(
+                condition=models.Q(charitable_amount__isnull=True)
+                | models.Q(
+                    charitable_amount__gte=0,
+                    charitable_amount__lte=models.F("gross"),
+                ),
+                name="payment_charitable_amount_within_gross",
+                violation_error_message="The charitable amount must be from 0 "
+                "to the gross amount.",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.transaction_id} {self.name}".strip()
 
     @property
     def is_refund(self):
-        return self.gross < 0
+        return self.event_code.startswith(REFUND_EVENT_CODE)
 
     @property
     @display(description="non-charitable amount")
@@ -86,7 +108,7 @@ class Payment(models.Model):
                 raise ValidationError(errors)
         elif amount is not None and amount < 0:
             raise ValidationError({"charitable_amount": "Enter 0 or more."})
-        elif amount is not None and amount > self.gross:
+        elif amount is not None and self.gross is not None and amount > self.gross:
             raise ValidationError(
                 {
                     "charitable_amount": "Enter no more than the gross amount, "
