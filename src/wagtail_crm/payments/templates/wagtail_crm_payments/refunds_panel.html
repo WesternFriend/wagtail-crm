@@ -1,0 +1,4 @@
+<p>{{ refunds }}</p>
+{% if not payment.is_refund and payment.adjusted_charitable_amount is not None %}
+    <p>Adjusted charitable amount: {{ payment.adjusted_charitable_amount }}</p>
+{% endif %}

@@ -1,5 +1,7 @@
 """Payments imported from a processor's activity export."""
 
+from decimal import Decimal
+
 from django.contrib.admin.decorators import display
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -7,18 +9,55 @@ from django.db import models
 from wagtail_crm.contacts.models import Contact
 
 # PayPal event codes T11xx are refunds and reversals; the importer takes them
-# only as debits. Refunds are matched to their original payment later (#7).
+# only as debits. A refund names its original payment in reference_transaction_id;
+# the link is looked up, not stored, so import order does not matter.
 REFUND_EVENT_CODE = "T11"
+CENT = Decimal("0.01")
 IS_REFUND = models.Q(event_code__startswith=REFUND_EVENT_CODE)
 REFUND_NOT_LINKED = (
     "A refund isn't linked to a donor. It is matched to its original payment."
 )
 
 
+def refunds_of(transaction_id):
+    """Refunds of a payment; an OuterRef gives a correlated subquery."""
+    return Payment.objects.filter(IS_REFUND, reference_transaction_id=transaction_id)
+
+
+def refunded_total(transaction_id):
+    """Sum of refund gross (negative) for a payment, or None if none."""
+    return (
+        refunds_of(transaction_id)
+        .order_by()
+        .values("reference_transaction_id")
+        .annotate(total=models.Sum("gross"))
+        .values("total")
+    )
+
+
 class PaymentQuerySet(models.QuerySet):
     def exclude_refunds(self):
         """The counterpart of Payment.is_refund."""
         return self.exclude(IS_REFUND)
+
+    def refunds(self):
+        return self.filter(IS_REFUND)
+
+    def unmatched_refunds(self):
+        """Refunds whose original payment has not been imported."""
+        originals = Payment.objects.filter(
+            transaction_id=models.OuterRef("reference_transaction_id")
+        )
+        return self.refunds().exclude(models.Exists(originals))
+
+    def with_refunded(self):
+        """Annotate `refunded`: the summed refund gross, or None if none."""
+        return self.annotate(
+            refunded=models.Subquery(
+                refunded_total(models.OuterRef("transaction_id")),
+                output_field=models.DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
 
 
 class Payment(models.Model):
@@ -37,7 +76,11 @@ class Payment(models.Model):
     fee = models.DecimalField(max_digits=12, decimal_places=2, editable=False)
     net = models.DecimalField(max_digits=12, decimal_places=2, editable=False)
     reference_transaction_id = models.CharField(
-        "reference transaction ID", max_length=64, blank=True, editable=False
+        "reference transaction ID",
+        max_length=64,
+        blank=True,
+        editable=False,
+        db_index=True,
     )
 
     # Staff decisions. A contact with payments cannot be deleted.
@@ -94,6 +137,41 @@ class Payment(models.Model):
         if self.charitable_amount is None:
             return None
         return self.gross - self.charitable_amount
+
+    @property
+    def refunds(self):
+        return refunds_of(self.transaction_id)
+
+    @property
+    def refunded_payment(self):
+        """For a refund, its original payment if imported."""
+        if not self.is_refund:
+            return None
+        return Payment.objects.filter(
+            transaction_id=self.reference_transaction_id
+        ).first()
+
+    @property
+    def refunded_amount(self):
+        """Summed refund gross, from the list annotation when present."""
+        if not hasattr(self, "refunded"):
+            self.refunded = (
+                Payment.objects.with_refunded()
+                .values_list("refunded", flat=True)
+                .get(pk=self.pk)
+            )
+        # SQLite's Sum drops trailing zeros; show cents like the other amounts.
+        return None if self.refunded is None else self.refunded.quantize(CENT)
+
+    @property
+    @display(description="adjusted charitable amount")
+    def adjusted_charitable_amount(self):
+        """The charitable amount reduced by refunds, never below 0."""
+        if self.charitable_amount is None:
+            return None
+        return max(
+            self.charitable_amount + (self.refunded_amount or 0), Decimal("0.00")
+        )
 
     def clean(self):
         super().clean()

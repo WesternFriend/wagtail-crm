@@ -1,0 +1,5 @@
+"Date","Time","TimeZone","Name","Type","Status","Currency","Gross","Fee","Net","From Email Address","To Email Address","Transaction ID","Item Title","Reference Txn ID","Transaction Event Code","Balance Impact"
+"02/10/2026","09:00:00","PST","Blake Sample","Payment Refund","Completed","USD","-10.00","0.39","-9.61","giving@example.org","blake@example.org","1RR00000000000001","","1AA00000000000002","T1107","Debit"
+"02/12/2026","09:00:00","PST","Blake Sample","Payment Refund","Completed","USD","-15.00","0.59","-14.41","giving@example.org","blake@example.org","1RR00000000000002","","1AA00000000000002","T1107","Debit"
+"03/25/2026","09:00:00","PDT","Casey Patron","Payment Refund","Completed","USD","-50.00","1.62","-48.38","giving@example.org","casey@example.org","1RR00000000000003","","1AA00000000000003","T1107","Debit"
+"06/01/2026","09:00:00","PDT","Quinn Orphan","Payment Refund","Completed","USD","-30.00","0.00","-30.00","giving@example.org","quinn@example.org","1RR00000000000004","","1AA00000000000099","T1107","Debit"
