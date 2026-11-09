@@ -1,5 +1,4 @@
 import hashlib
-from decimal import Decimal
 
 import django_filters
 from django import forms
@@ -162,11 +161,7 @@ class PaymentIndexView(IndexView):
 
 
 def refunds_html(payment, action):
-    """A payment's refunds, or a refund's original, linked to `action` pages.
-
-    Sets the payment's refunded total from the listed refunds, so the
-    adjusted amount shown with them uses the same rows.
-    """
+    """A payment's refunds, or a refund's original, linked to `action` pages."""
     if payment.is_refund:
         original = payment.refunded_payment
         if original is None:
@@ -182,7 +177,6 @@ def refunds_html(payment, action):
             REFUND_NOT_LINKED,
         )
     refunds = list(payment.refunds)
-    payment.refunded = sum((r.gross for r in refunds), Decimal(0)) if refunds else None
     if not refunds:
         return "No refunds"
     return format_html_join(
