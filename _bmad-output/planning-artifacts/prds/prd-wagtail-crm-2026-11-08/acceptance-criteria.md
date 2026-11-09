@@ -9,13 +9,13 @@ Run the criteria on synthetic data. Amounts are synthetic USD fixture values, no
 | Case | Slice | Staff task | Observable result |
 | --- | --- | --- | --- |
 | AC-01 | #5, #6 | Import a completed $100 gift with a $3 fee, link it to a donor and record $100 as charitable | The payment shows gross $100, fee $3, net $97 and charitable $100. The fee does not reduce the contribution. |
-| AC-02 | #6, #9 | For the same donor, record $45 of a $90 patron payment and $0 of a $20 purchase as charitable, then preview the year's letter | Each payment shows its non-charitable remainder ($45 and $20). The letter lists $100 and $45 and totals $145; the purchase is not listed. |
-| AC-03 | #6 | Enter a charitable amount above the gross, or below zero; leave another payment blank | The form explains the error and keeps the entered values. The blank payment appears under "needs charitable amount"; a saved $0 does not. |
+| AC-02 | #6, #9 | For the same donor, record $45 of a $90 patron payment and $0 of a $20 purchase as charitable, then preview the year's letter | Each payment shows its non-charitable remainder ($45 and $20). The letter shows the $100 gift, and the $90 patron payment with $45 charitable and $45 for goods or services. It totals $145 charitable; the purchase is not listed. |
+| AC-03 | #6 | Enter a charitable amount above the gross, or below zero; leave another payment blank | The form explains the error and keeps the entered values, and nothing is saved. The blank payment appears under "needs charitable amount"; a saved $0 does not. |
 | AC-05 | #6 | Link a payment whose PayPal name or email differs from, or matches, an existing contact | The PayPal payer name and email stay visible on the payment. No contact is merged, renamed or linked without staff choosing it. |
 | AC-06 | #5 | Upload a CSV, upload the same file again, then upload a file that overlaps it | The repeat upload is rejected. The overlapping file adds only the new transactions, and existing donor links and charitable amounts are unchanged. |
 | AC-07 | #5 | Upload a file containing a malformed amount, an unsupported status and a EUR row | The preview lists each skipped row with its reason. Nothing is dropped silently, and no USD value is invented. |
 | AC-08 | #7 | Open a payment that has a linked refund; separately, find a refund whose payment was not imported | The payment shows the refund and the adjusted charitable amount for staff to review. The unmatched refund is listed as needing review. |
-| AC-10 | #8 | Choose a period, enter PayPal's totals, and accept the reconciliation | Count, gross, fees, net and refunds appear next to the entered totals, and any difference is shown. Letters cannot be issued until staff accept; History shows who accepted and when. |
+| AC-10 | #8 | Choose a period, enter PayPal's totals, and accept the reconciliation | Count, gross, fees, net and refunds appear next to the entered totals, and any difference is shown. Staff can accept only when every payment in the period has a charitable amount and no refund is unmatched. Letters cannot be issued until staff accept; History shows who accepted and when. |
 | AC-12 | #9 | Issue a donor's letter, then edit the contact's address and one payment | The issued PDF and its stored values do not change. |
 | AC-13 | #9 | Issue a correction for an issued letter | A new letter is linked to the earlier one, and the earlier PDF is still available. |
 | AC-14 | #10 | Download an issued letter, record a failed email dispatch, then a successful postal dispatch | Downloading alone leaves the letter unsent. Both attempts are listed with channel, date, outcome and note. Unsent and failed letters can be listed. |
@@ -31,7 +31,7 @@ Each item returns only when a real case shows it is needed.
 - AC-09 (offline/mailed-gift coverage): waits on the coverage decision in roadmap step 0.
 - AC-11 (batch approval and version invalidation): 0.1.0 issues letters one at a time.
 - Reopening an accepted reconciliation after later imports, and recovering from an interrupted import or issuance: Django transactions and ordinary Wagtail behavior are accepted for now.
-- Refund splits beyond reducing the contribution, a portable export (AC-16), delivery-exception closure authority, and the evidence contract, gate-dependency matrix and reconciliation bridge from the earlier draft. Git history keeps that draft.
+- Refund splits beyond reducing the contribution, the portable-export half of the earlier AC-16, delivery-exception closure authority, and the evidence contract, gate-dependency matrix and reconciliation bridge from the earlier draft. Git history keeps that draft.
 
 ## AC-18 — Minimum contact management
 
@@ -60,6 +60,7 @@ Use established contact standards when a concrete import/export workflow needs m
 | Timezone for the period, from the PayPal account | Brylie | Reconciliation (#8) |
 | Refund treatment beyond reducing the contribution | Bookkeeper | Refund review (#7) on real data |
 | Expected totals for the pilot period, confirmed independently of the app | Bookkeeper | Pilot (#12) |
+| Letter wording for the goods-or-services value of a mixed payment | Bookkeeper | Letter preview (#9) |
 
 ## Development increments versus release completion
 

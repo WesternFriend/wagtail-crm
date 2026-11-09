@@ -15,11 +15,9 @@ All owners below are proposed roles, not accepted assignments. Brylie proposes c
 | Offline gift source | Bookkeeper | Identify authoritative records, confirmed-gift criteria and stable references; choose capture method if covered | Agreed offline coverage |
 | Allocation and refund policy | Bookkeeper with Editor | Confirm historical effective dates, approvals, mixed gifts, partial/cross-year refunds and corrections | Financial review and affected issuance |
 | Historical letter and delivery | Editor with finance review | Confirm wording, benefits, signatory, branding, translation needs, delivery tools/preferences | Approved donor communication |
-| Closure and exclusions | Confirmed business owner, Editor and bookkeeper | Define acceptable follow-up, exclusion treatment and authority for documented delivery exceptions | Cycle closure |
 | Desktop working conditions | Editor and Brylie | Confirm Mac/browser/display/accessibility, printing and interruption/resumption needs | Supported UX test setup |
 | Support and operations | Business owner and technical maintainer, names TBD | Name account/update/support/backup/recovery owners; agree availability; demonstrate restore | Real-data operational use |
 | Retention and deletion | Business owner and technical maintainer, names TBD | Agree evidence, letter, audit and backup retention/deletion arrangements | Real-data operational readiness |
-| Portable record | Brylie, reviewed by Editor/bookkeeper | Document export schema/manifest and verify reconstructed donor history independently of app | Exit and continuity readiness |
 
 ## Asynchronous pilot method
 
@@ -35,42 +33,37 @@ Monthly calls and live observation may supplement this evidence but are not prer
 
 ## Representative scenarios
 
-The following are proposed test scenarios derived from the interview, not approved financial policy.
+The detailed staff tasks and results are in [acceptance-criteria.md](acceptance-criteria.md), which also lists what is deferred from 0.1.0. Record separate UX and financial verdicts for each; none has yet been run.
 
-Use `acceptance-criteria.md` as the detailed specification: it defines evidence fields, gate/change dependencies, explicit reconciliation checks, numeric fixture premises, import/issuance retry cases, prohibited outcomes and proposed reviewers. This table remains a scenario overview. Record separate UX and financial verdicts; none of these scenarios has yet been run.
-
-| Scenario | Evidence of acceptable behavior |
+| Scenario | Criteria |
 | --- | --- |
-| Straightforward gift | Confirmed donor, approved allocation rule, separate fees, traceable contribution and letter |
-| Patron subscription | Applicable approved historical policy visible; missing policy blocks affected issuance |
-| Ambiguous payer or gift recipient | Suggestions do not silently confirm attribution; reviewer resolves or escalates |
-| Repeat/overlapping import | No duplicate financial effects; previous staff decisions retained |
-| Rejected rows and interrupted import | Explained dispositions and visible outcome; safe retry without duplicate effects or lost review decisions |
-| Mixed-payment refund or changed source facts | Conflict visible; appropriate review reopened; old evidence preserved |
-| Missing offline coverage | Review/drafts continue; incomplete coverage cannot masquerade as issuance readiness |
-| Unsupported currency or language need | Original evidence retained; exception and required decision visible; no invented conversion |
-| Batch approval and issuance | Preview and explicit scope/version approval correspond to immutable issued artifacts |
-| Explicit reconciliation and changed dataset | Independent comparison accounts for records and monetary categories; unexplained differences block acceptance; material change reopens dependent review |
-| Repeated/interrupted issuance | No silent duplicate issuance/dispatch; staff can identify outcome and safely recover |
-| Correction after issuance | Linked newly approved revision; prior letter and dispatch history unchanged |
-| Download, dispatch and retry | Download leaves pending; actual dispatch attestation and separate attempts recorded |
-| Missing address/unreachable donor | Follow-up remains visible; any accepted closure preserves undelivered status and other gates |
-| Interruption and return | Entered work retained, review state and next action understandable |
+| Straightforward gift with a fee | AC-01 |
+| Patron payment, part gift and part goods or services | AC-02 |
+| Invalid or missing charitable amount | AC-03 |
+| Payer name or email differs from a contact | AC-05 |
+| Repeat and overlapping import | AC-06 |
+| Skipped rows, including an unsupported currency | AC-07 |
+| Refund, matched and unmatched | AC-08 |
+| Reconciliation against PayPal totals | AC-10 |
+| Issued letter unchanged by later edits; correction | AC-12, AC-13 |
+| Download, failed dispatch and retry | AC-14 |
+| Restricted accounts | AC-15 |
+| Restore from backup | AC-16 |
+| Full cycle with the Editor | AC-17 |
 
 ## Release evidence ledger
 
-Before real operational use, record an accountable person, evidence reference, outcome and unresolved issues for each gate:
+Before real operational use, record an accountable person, evidence reference, outcome and unresolved issues for each item:
 
-- Agreed scope and complete coverage; explained record dispositions and zero unexplained reconciliation differences.
-- Independently checked amounts, attribution, historical policy, refund treatment and letter wording.
-- Observed through asynchronous task evidence: routine staff independence, comprehension, appropriate escalation and understandable states.
-- Endpoint access controls and private evidence/artifact/export storage, including denial to users without CRM permissions.
+- Skipped rows explained in the preview, and reconciled totals matching PayPal for the pilot period (#12).
+- Expected totals, charitable amounts, refund treatment and letter wording confirmed by the bookkeeper.
+- Asynchronous task evidence that the Editor completes the cycle, understands amounts and letter states, and escalates finance questions appropriately.
+- Access denied to users without permissions, including direct URLs and PDFs.
 - Basic keyboard, zoom, labels/errors and non-color status accessibility checks on the supported desktop setup.
-- Repeat-import safety, preserved approvals/decisions, immutable issued documents and correct revision/distribution behavior.
-- Complete documented portable export whose donor history can be reconstructed without running the app.
-- Successful database/artifact recovery and confirmed account, update, support and backup ownership.
+- Repeat-import safety, unchanged issued letters, linked corrections and recorded dispatch attempts.
+- A tested restore, and confirmed account, update, support and backup ownership.
 
-Pilot subset completion and full annual completion are different outcomes. A cycle may be fully distributed or closed with explicitly accepted distribution exceptions under confirmed policy. No distribution exception waives coverage, identity or financial approval.
+Pilot subset completion and full annual completion are different outcomes. Closing a cycle with delivery exceptions is deferred (FR-14).
 
 ## Development handoff — minimal contacts
 

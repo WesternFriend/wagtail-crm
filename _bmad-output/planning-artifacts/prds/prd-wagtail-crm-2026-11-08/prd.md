@@ -64,7 +64,7 @@ Each requirement names the 0.1.0 slice issue that delivers it, or is marked defe
 ### Intake
 
 - **FR-01 (#5):** Staff import a PayPal Activity Download CSV after previewing it. A repeated file is rejected, and an overlapping file adds only new transactions.
-- **FR-20 (#5):** Rows that are not imported stay visible with the reason. A failed import leaves nothing imported. Recovery from an interrupted import is deferred.
+- **FR-20 (#5):** The preview lists each row that will not be imported, with the reason, before staff confirm. A failed import leaves nothing imported. Recovery from an interrupted import is deferred.
 - **FR-02 (#6):** Staff create or choose the donor contact while linking a payment. Bulk contact import is deferred until volume shows a need.
 - **FR-03:** Deferred. Tracking source coverage by account and date range.
 - **FR-04:** Deferred. Mailed or other offline gifts, pending the coverage decision in roadmap step 0.
@@ -79,8 +79,8 @@ Each requirement names the 0.1.0 slice issue that delivers it, or is marked defe
 
 ### Reconciliation, issuance and distribution
 
-- **FR-21 (#8):** For a chosen period, staff compare the imported count, gross, fees, net and refunds with the totals they enter from PayPal, and accept the reconciliation. Letters for the period cannot be issued before acceptance.
-- **FR-10 (#9):** Staff preview a donor's letter for a period with name, address, each contribution and the total, using a plain template.
+- **FR-21 (#8):** For a chosen period, staff compare the imported count, gross, fees, net and refunds with the totals they enter from PayPal, and accept the reconciliation once every payment in the period has a charitable amount and no refund is unmatched. Letters for the period cannot be issued before acceptance.
+- **FR-10 (#9):** Staff preview a donor's letter for a period with name, address, each contribution, the goods-or-services value of any mixed payment, and the total, using a plain template.
 - **FR-11:** Deferred. Letters are issued one at a time, with no batch approval.
 - **FR-12 (#9):** An issued letter keeps its PDF and values when contacts or payments change later. A correction is a new letter linked to the earlier one.
 - **FR-22:** Deferred. Recovery from an interrupted or repeated issuance.
@@ -96,11 +96,11 @@ Each requirement names the 0.1.0 slice issue that delivers it, or is marked defe
 ## Readiness and success evidence
 
 - Every imported record explained; agreed dataset reconciles with zero unexplained differences.
-- Every issued contribution traceable to source evidence and approved allocation.
-- Unresolved identities, material allocation/refund issues, or inadequate coverage block affected issuance.
+- Every issued contribution traceable to its payment and the charitable amount staff recorded.
+- Payments without a charitable amount and unmatched refunds block reconciliation acceptance, and so issuance.
 - Repeat imports create no duplicate effects; corrections preserve prior issuance.
 - Editor and bookkeeper verify known gifts, mixed payments, ambiguous donors, and refunds against independently established expectations.
-- Editor completes representative routine work without developer help, understands amounts and unresolved work, distinguishes draft, approved, and dispatched letters, and recognizes appropriate financial escalation. Demonstrate this primarily through asynchronous testing, with live observation supplementary when practical.
+- Editor completes representative routine work without developer help, understands amounts and unresolved work, distinguishes previewed, issued and dispatched letters, and recognizes appropriate financial escalation. Demonstrate this primarily through asynchronous testing, with live observation supplementary when practical.
 - Verify unauthorized-access prevention and successful recovery before operational use.
 - Supported pilot has onboarding, written guidance, named help contact and availability, and named operational owners.
 
