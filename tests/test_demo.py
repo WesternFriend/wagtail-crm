@@ -19,6 +19,8 @@ def test_demo_seed_is_repeatable_and_does_not_create_logins(
     group = Group.objects.get(name="CRM Editors")
     assert group.permissions.filter(codename="access_admin").exists()
     assert group.permissions.filter(codename="change_contact").exists()
+    assert group.permissions.filter(codename="add_payment").exists()
+    assert not group.permissions.filter(codename="change_payment").exists()
     assert not group.permissions.filter(codename="change_user").exists()
 
 

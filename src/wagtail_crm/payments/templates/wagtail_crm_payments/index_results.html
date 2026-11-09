@@ -1,0 +1,9 @@
+{% extends "wagtailadmin/generic/index_results.html" %}
+
+{% block no_results_message %}
+    {% if add_url and not is_searching and not is_filtering %}
+        <p>There are no payments yet. <a href="{{ add_url }}">Import a PayPal CSV</a> to add them.</p>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}

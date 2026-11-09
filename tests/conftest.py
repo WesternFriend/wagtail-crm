@@ -21,3 +21,15 @@ def contact_editor(staff_user):
         *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts")
     )
     return staff_user
+
+
+@pytest.fixture
+def payment_editor(staff_user):
+    """A CRM Editor's payment permissions, as seeded: view and import."""
+    staff_user.user_permissions.add(
+        *Permission.objects.filter(
+            content_type__app_label="wagtail_crm_payments",
+            codename__in=["add_payment", "view_payment"],
+        )
+    )
+    return staff_user
