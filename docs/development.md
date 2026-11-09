@@ -44,7 +44,7 @@ There is no bespoke audit model, snapshot display, migration-baseline entry or o
 
 Imported: `Completed` rows in USD whose Transaction Event Code is T00xx with Balance Impact Credit (received) or T11xx with Debit (refunds and reversals). Skipped with a reason: other statuses, outgoing T00xx payments, withdrawals and other codes, other currencies, malformed amounts or dates, and TimeZone values other than US abbreviations (PST/PDT, MST/MDT, CST/CDT, EST/EDT) or UTC/GMT. These assumptions come from PayPal's documentation; #12 confirms them against a real export. Synthetic fixtures are in `tests/fixtures/paypal/`; upload `activity.csv` to try the flow.
 
-Imported values are read-only: the stock list, Inspect and History views show them, and the Edit form has no fields until donor linking (#6). CRM Editors can view and import, not change or delete. Times are stored in UTC and shown in `TIME_ZONE` (`DJANGO_TIME_ZONE`, default UTC). Set it to the organization's zone, for example `America/Los_Angeles`; otherwise a gift late on December 31 Pacific time is shown as January 1.
+Imported values are read-only: the stock list, Inspect and History views show them, and the Edit form has no fields until donor linking (#6). CRM Editors can view and import, not change or delete. Times are stored in UTC. Each staff member sees them in the zone chosen under Account → Preferences → Current time zone (Wagtail's built-in preference; `WAGTAIL_USER_TIME_ZONES` can limit the choices), otherwise in `TIME_ZONE`, which stays UTC. Which zone decides reporting-period boundaries, for example whether a gift late on December 31 Pacific time counts in that year, is an open decision for reconciliation (#8).
 
 ## Layout and package boundary
 

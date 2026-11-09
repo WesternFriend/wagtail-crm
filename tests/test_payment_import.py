@@ -6,6 +6,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.urls import reverse
+from wagtail.users.models import UserProfile
 
 from wagtail_crm.payments.models import Payment
 
@@ -171,3 +172,17 @@ def test_editor_cannot_change_or_delete_payments(editor):
         url = reverse(f"wagtail_crm_payments:{name}", args=[pk])
         assert editor.post(url).status_code in (302, 403)
     assert Payment.objects.count() == 6
+
+
+def test_dates_follow_each_staff_members_wagtail_time_zone(editor, payment_editor):
+    # Stored in UTC; shown in the zone from Account → Preferences.
+    profile = UserProfile.get_for_user(payment_editor)
+    profile.current_time_zone = "America/Los_Angeles"
+    profile.save()
+    preview = upload(editor).content.decode()
+    assert "Dec. 31, 2026, 11:59 p.m." in preview
+    listing = confirm(editor, upload(editor)).content.decode()
+    assert "Dec. 31, 2026, 11:59 p.m." in listing
+    assert "Jan. 1, 2027" not in listing
+    gift = Payment.objects.get(transaction_id="1AA00000000000012")
+    assert gift.occurred_at.isoformat() == "2027-01-01T07:59:59+00:00"
