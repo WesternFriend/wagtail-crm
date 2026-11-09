@@ -7,33 +7,15 @@ updated: 2026-11-08
 
 # Product direction
 
-Interview-based working draft. Stakeholder authority and operational policies remain unconfirmed. This document supplements the existing `docs/` drafts; it does not silently replace or approve them.
+Working draft. Brylie approved the [product brief](product-brief.md) as product direction on 2026-11-08; it is the one statement of the north star, first useful release, boundaries and pilot approach. This PRD holds the 0.1.0 requirements, readiness evidence and open decisions. Neither confirms stakeholder authority, financial policy or operational readiness.
 
-Brylie approved `product-brief.md` as product direction on 2026-11-08 after clarifying usability, delivery-exception closure, separate UX/financial validation, and source independence. The detailed PRD remains a draft; that approval does not confirm stakeholder authority, financial policies, or operational readiness.
-
-## North star
-
-An affordable, maintainable, Apache-licensed nonprofit CRM that organizations can operate and adapt themselves. Organizations control their data and hosting. Private, portable records and traceable decisions let successors continue the work without reconstructing undocumented history.
-
-Western Friend is the first customer. Its Editor needs annual donor acknowledgments from PayPal activity loosely connected to bookstore and subscription records. Matching donors, interpreting mixed payments, and refunds are investigation hypotheses, not observed workflow findings.
-
-Long-term success means independent organizations in multiple countries completing their own workflows, maintaining installations, and contributing improvements. The international Wagtail community is an initial audience. Languages, currencies, address formats, and local reporting policies develop incrementally with actual adoption. International support is not an initial compliance claim.
-
-The initial interface and standard letters are English; calculations and reporting support USD only. Preserve international donor names and correspondence details. Unsupported currencies retain original values as visible unresolved exceptions; never invent exchange rates or silently discard them. Other-language needs require an approved translation or external correspondence process and remain open until adequately addressed. Substantial demand should trigger scope review.
-
-PayPal is the first supported source; core donor and contribution records remain processor-neutral. Source-specific adapters must not make the core dependent on PayPal identifiers or rules.
-
-Wagtail CMS is the sole UI for CRM workflows. Use its navigation, forms, actions, permissions and interaction conventions as the shared staff experience. Extend Wagtail's admin for workflow-specific screens wherever possible; a separate frontend or public CRM pages are outside the intended product scope. The site root redirects to Wagtail login. This constraint applies to future imports, review, reconciliation and acknowledgment workflows as well as contact management.
-
-Simple UX means familiar, task-appropriate fields populated with recorded values, not collapsing known structured data into a text box. Standards guide internal semantics; staff do not assemble schema components, choose separators or manage formatting rules. Apply this principle across the CRM, including future address forms when their agreed scope calls for structured address fields. Names are never split automatically. Finish usable contact management before starting imports or financial features. Before requesting review, the developer must run the app and personally complete creation, finding, editing and inspection for people/organizations, including contact-type changes and single names, optional details and validation recovery; fix confusing interactions directly rather than add instructions around them. This does not expand the current multiline postal-address increment.
+Architecture decisions that span increments are in the [architecture spine](../../architecture/architecture-wagtail-crm-2026-11-08/ARCHITECTURE-SPINE.md).
 
 ## Common contact data and minimum slice
 
 Use Django and Wagtail conventions first, with ordinary fields staff understand. The contact slice supports people with Given name and Family name (either may stand alone), organizations with Name, and one optional email and multiline postal correspondence address. Changing an organization to a person requires staff-entered given and/or family names; the organization name is not split automatically. Names may contain multiword and non-Latin text. Adding a contact establishes no donor, payer, subscriber or recipient role.
 
-The approved staff tasks are [AC-18](acceptance-criteria.md#ac-18--minimum-contact-management). Use Wagtail's standard create/edit/delete actions, permissions, History and Site history. Do not build a parallel audit model, revision workflow, snapshot display or concurrency mechanism for this slice. Last-save-wins is accepted; concurrent-edit protection is deferred until demonstrated need. There are no existing installations; the alpha contacts app starts with a fresh initial migration and no migration-baseline history entries.
-
-One distribution contains one Django app per domain. Contacts owns contact records; later finance, imports and letters may depend on contacts, while contacts imports none of them. No shared core or generic audit app is needed now.
+The approved staff tasks are [AC-18](acceptance-criteria.md#ac-18--minimum-contact-management). Views, history and concurrency follow AD-2 in the architecture spine.
 
 Contact completeness remains separate from donor attribution and delivery readiness. Shared names, addresses or emails do not merge identities. Future confirmed source mappings stay within source/account scope; conflicting evidence requires review. Exact delivery practice remains unresolved; downloadable PDFs, external sending tools and recording actual dispatch are the agreed direction for later increments.
 
@@ -43,9 +25,7 @@ Established standards should guide future interoperability when an actual import
 
 ## First operational outcome
 
-The Editor completes one agreed annual acknowledgment cycle: collect source records and correspondence context, import and resolve duplicates, confirm donors, review charitable allocations and refunds, reconcile, approve and issue letters, distribute through agreed tools, and record dispatch. The resulting record explains inclusions, exclusions, unresolved work, source evidence, decisions, and corrections.
-
-The reporting period, deadline, volumes, covered accounts, offline gifts, and delivery practice are unknown. A prior request mentioned the prior fiscal year; acknowledgment dates must be confirmed independently.
+The first useful release is described in the [product brief](product-brief.md). The reporting period, deadline, volumes, covered accounts, offline gifts and delivery practice are still unknown; see [Evidence and decisions still needed](#evidence-and-decisions-still-needed).
 
 ## Users and proposed authority
 
@@ -110,13 +90,11 @@ See `acceptance-criteria.md` for the staff-task acceptance criteria of each 0.1.
 
 ## Deferred scope
 
-Live PayPal synchronization, direct website integration, additional processor adapters, application email and automated delivery tracking if external tools suffice, campaigns, portals, fundraising automation, fulfillment, advanced analytics, shared multi-organization hosting, and additional-country reporting rules.
-
-Future enhancement: email issued PDFs directly from the CRM to save the Editor a manual step. This is outside the first cycle; downloadable PDFs and manual external email are sufficient. Revisit after observing the delivery workflow, with sending, confirmation and retry behavior scoped separately.
+See Boundaries in the [product brief](product-brief.md). Emailing issued PDFs from the CRM is a later candidate in the [roadmap](../../../../docs/roadmap.md).
 
 ## Adoption, configuration, and maintenance
 
-Installations may be maintained by nonprofit technical staff, capable volunteers, consultants, or eventually hosting providers. After setup, the Editor operates through the interface with occasional technical support. Affordability includes hosting, maintenance, support, training, and staff time; no cost target is established.
+Who maintains installations and what affordability covers are in the [product brief](product-brief.md).
 
 - **FR-18:** Deferred. Staff-managed organization and letter settings; 0.1.0 uses a plain template (#9).
 - **FR-19:** Deferred. Allocation policy versions and their approval history.
@@ -125,28 +103,21 @@ Installations may be maintained by nonprofit technical staff, capable volunteers
 
 ## Pilot learning and collaboration
 
-Primary learning question: after brief onboarding, can the Editor own the supported workflow, explain results, recognize uncertainty, and involve finance appropriately without developer intervention? Source correctness, coverage, and privacy remain mandatory gates rather than tradeoffs for usability. Independent adoption by another nonprofit is a later test.
-
-Brylie first iterates locally with representative synthetic data, then provides a restricted hosted synthetic test environment when ready for Editor feedback. Give short, goal-oriented scenarios and a simple way to report confusing steps, unexpected results, and questions. Brief notes and optional synthetic screenshots, together with inspection of resulting records, provide primary task evidence. Repeat representative work with minimal prompting and record help, lost context, misunderstood states, and unnecessary repetition. Cross-timezone progress must work asynchronously; monthly calls are optional supplements.
-
-Synthetic-data UX tests establish usability and understanding. Financial validation separately compares results with stakeholder-approved source evidence and independently established expected results. Both are required for operational readiness; neither substitutes for the other. Protect any restricted real evidence and keep it outside public repository content and synthetic UX environments.
-
-Confirm the Editor's browser/macOS/display setup and accessibility preferences, and investigate switching among records, PDFs, email and printing, interruptions, connectivity and pause/resume needs before setting numeric time or assistance targets. See `validation-plan.md` for evidence and readiness tracking.
-
-New adapters, unsupported allocation methods, substantial document-layout changes, and additional-country reporting requirements may need developer support. Introduce common configuration as adoption provides evidence; avoid requiring organization-specific forks for supported routine work.
-
-## Evidence-driven scope changes
-
-Assess exception frequency, effort, and consequences with the Editor and bookkeeper. Rare exceptions may use controlled manual handling; substantial repeated work can justify essential bulk capabilities. Expand the release where necessary to complete the agreed outcome, or explicitly reconsider that outcome when evidence makes it unachievable.
-
-A deliberately agreed pilot subset must have complete coverage within its stated limits. Completing it does not complete the wider annual obligation; remaining work stays visible. Unverifiable identities, amounts, coverage, or financial policy delay affected operational use. A deadline cannot override these controls.
+The pilot question and the asynchronous, synthetic-data method are in the [product brief](product-brief.md) (Pilot and next evidence). UX testing and financial validation are separate tracks; operational readiness needs both.
 
 ## Evidence and decisions still needed
 
 Proposed discovery coordinator: Brylie; not yet stakeholder-confirmed. Obtain a historical letter, representative redacted PayPal export, contact/subscription records, and mailed-gift examples if covered. Redaction must retain matching relationships and financial edge cases. Observe the Editor's current workflow and representative tasks; bookkeeper supplies authoritative records and expected results.
 
-Confirm period/date basis/timezone, coverage, volume/deadline, historical subscription valuations, refund/cross-year corrections, donor attribution edge cases, wording/signatory/branding, delivery preferences, exclusion and closure policy, approval authority, retention/deletion, and support/recovery ownership. Each operational prerequisite needs a named owner and next action before readiness can be declared. Hosting and VPN choices remain open.
+Confirm period/date basis/timezone, coverage, volume/deadline, historical subscription valuations, refund/cross-year corrections, donor attribution edge cases, wording/signatory/branding, delivery preferences, exclusion and closure policy, approval authority, retention/deletion, and support/recovery ownership. Each operational prerequisite needs a named owner and next action before readiness can be declared. Hosting and VPN choices remain open; DigitalOcean App Platform and Spaces are candidates, not validated. The Western Friend website's AGPL source is a reference for conventions only; assess rights before reusing any of it.
 
 ## Document status
 
-This draft captures the interview so far. It is not stakeholder approval, a finalized PRD, or evidence of implemented behavior. Architecture, UX details, and implementation sequencing remain downstream work. The discovery log preserves interview provenance.
+This draft is not stakeholder approval, a finalized PRD, or evidence of implemented behavior.
+
+## References
+
+- [PayPal Activity Download report](https://developer.paypal.com/reports/activity-download/) and [Transaction Search reference](https://developer.paypal.com/api/transaction-search/v1/search-get): reporting identifiers and statuses.
+- [Western Friend subscription prices](https://westernfriend.org/subscription-prices/): current public evidence of mixed patron payments, not approval of historical mappings.
+- [Western Friend FY2023 annual report](https://westernfriend.org/board-documents/fy2023-annual-report/): the fiscal year runs October to September; the donor reporting period still needs confirmation.
+- [IRS Publication 1771](https://www.irs.gov/pub/irs-pdf/p1771.pdf) and [quid pro quo contributions](https://www.irs.gov/charities-non-profits/charitable-organizations/charitable-contributions-quid-pro-quo-contributions): acknowledgment and benefit-disclosure requirements for letters (#9).
