@@ -165,3 +165,15 @@ def test_amount_beyond_the_stored_precision_is_skipped():
         '"100.00","0.00","100.00"', '"9,999,999,999.99","0.00","1.00"'
     )
     assert len(read_activity_csv(f"{header}\n{largest}\n").payments) == 1
+
+
+def test_text_longer_than_its_column_is_skipped():
+    header, first, *_ = fixture("activity.csv").splitlines()
+    long_id = first.replace("1AA00000000000001", "X" * 65)
+    long_name = first.replace("Avery Example", "A" * 256)
+    result = read_activity_csv(f"{header}\n{long_id}\n{long_name}\n")
+    assert result.payments == []
+    assert [s.reason for s in result.skipped] == [
+        "Transaction ID is too long",
+        "Name is too long",
+    ]

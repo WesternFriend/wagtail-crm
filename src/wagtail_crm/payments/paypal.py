@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
+from django.utils.text import capfirst
+
 from .models import Payment
 
 EVENT_CODE = "Transaction Event Code"
@@ -162,7 +164,7 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
         return f"Malformed date or time: {stamp}"
 
     received = row[BALANCE_IMPACT].strip() == "Credit"
-    return Payment(
+    payment = Payment(
         transaction_id=transaction_id,
         occurred_at=occurred_at.replace(tzinfo=zone).astimezone(UTC),
         name=row["Name"].strip(),
@@ -177,3 +179,14 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
         net=amounts["Net"],
         reference_transaction_id=row["Reference Txn ID"].strip(),
     )
+    return _too_long(payment) or payment
+
+
+def _too_long(payment: Payment) -> str | None:
+    """Name a text value that would not fit its database column."""
+    for model_field in Payment._meta.concrete_fields:
+        value = getattr(payment, model_field.attname)
+        limit = getattr(model_field, "max_length", None)
+        if isinstance(value, str) and limit and len(value) > limit:
+            return f"{capfirst(model_field.verbose_name)} is too long"
+    return None
