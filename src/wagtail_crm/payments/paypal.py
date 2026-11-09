@@ -52,6 +52,8 @@ TIME_ZONES = {
 }
 
 AMOUNT = re.compile(r"-?(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?")
+# Payment amounts are DecimalField(max_digits=12, decimal_places=2).
+AMOUNT_LIMIT = Decimal("1e10")
 
 
 class ActivityFileError(ValueError):
@@ -90,7 +92,9 @@ def read_activity_csv(text: str) -> ActivityFile:
     existing = set(Payment.objects.values_list("transaction_id", flat=True))
     result = ActivityFile()
     first_seen: dict[str, int] = {}
-    for number, row in rows:
+    for number, cells in rows:
+        # A short row leaves missing cells as None; extra cells are ignored.
+        row = {key: value or "" for key, value in cells.items() if key is not None}
         transaction_id = row["Transaction ID"].strip()
         if not transaction_id:
             outcome: Payment | str = "Missing transaction ID"
@@ -142,7 +146,10 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
         value = row[column].strip()
         if not AMOUNT.fullmatch(value):
             return f"Malformed {column}: {value or '(blank)'}"
-        amounts[column] = Decimal(value.replace(",", ""))
+        amount = Decimal(value.replace(",", ""))
+        if abs(amount) >= AMOUNT_LIMIT:
+            return f"{column} is too large: {value}"
+        amounts[column] = amount
 
     zone = TIME_ZONES.get(row["TimeZone"].strip())
     if zone is None:

@@ -146,3 +146,22 @@ def test_skipped_row_sharing_an_id_does_not_hide_the_payment():
     assert [s.reason for s in result.skipped] == [
         "Unsupported type: Hold on Balance (T1503)"
     ]
+
+
+def test_short_row_is_skipped_with_a_reason():
+    header, first, *_ = fixture("activity.csv").splitlines()
+    short = ",".join(first.split(",")[:8])  # ends after Gross
+    result = read_activity_csv(f"{header}\n{short}\n")
+    assert result.payments == []
+    assert [s.reason for s in result.skipped] == ["Missing transaction ID"]
+
+
+def test_amount_beyond_the_stored_precision_is_skipped():
+    header, first, *_ = fixture("activity.csv").splitlines()
+    huge = first.replace('"100.00","0.00","100.00"', '"10000000000.00","0.00","1.00"')
+    result = read_activity_csv(f"{header}\n{huge}\n")
+    assert [s.reason for s in result.skipped] == ["Gross is too large: 10000000000.00"]
+    largest = first.replace(
+        '"100.00","0.00","100.00"', '"9,999,999,999.99","0.00","1.00"'
+    )
+    assert len(read_activity_csv(f"{header}\n{largest}\n").payments) == 1

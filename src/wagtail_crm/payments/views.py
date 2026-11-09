@@ -57,7 +57,7 @@ class PaypalImportView(PermissionCheckedMixin, WagtailAdminTemplateMixin, FormVi
         if "confirm" in request.POST:
             return self.confirm()
         if "cancel" in request.POST:
-            request.session.pop(SESSION_KEY, None)
+            self.take_preview()
             return redirect(self.index_url_name)
         return super().post(request, *args, **kwargs)
 
@@ -84,9 +84,17 @@ class PaypalImportView(PermissionCheckedMixin, WagtailAdminTemplateMixin, FormVi
             )
         )
 
+    def take_preview(self):
+        """Remove the preview this page showed; a newer one stays in place."""
+        pending = self.request.session.get(SESSION_KEY)
+        if pending and pending["digest"] == self.request.POST.get("digest"):
+            del self.request.session[SESSION_KEY]
+            return pending
+        return None
+
     def confirm(self):
-        pending = self.request.session.pop(SESSION_KEY, None)
-        if not pending or pending["digest"] != self.request.POST.get("digest"):
+        pending = self.take_preview()
+        if not pending:
             messages.error(
                 self.request, "This preview is out of date. Upload the file again."
             )

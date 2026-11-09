@@ -75,19 +75,24 @@ def test_overlapping_file_adds_only_new_payments(editor):
 
 
 def test_cancel_discards_the_preview(editor):
-    upload(editor)
-    response = editor.post(IMPORT_URL, {"cancel": ""})
+    preview = upload(editor)
+    response = editor.post(
+        IMPORT_URL, {"cancel": "", "digest": preview.context["digest"]}
+    )
     assert response.url == INDEX_URL
     assert "wagtail_crm_payments_import" not in editor.session
     assert Payment.objects.count() == 0
 
 
-def test_stale_preview_is_not_imported(editor):
+def test_older_tab_neither_imports_nor_discards_the_newer_preview(editor):
     first = upload(editor)
-    upload(editor, "activity-overlap.csv")
+    newer = upload(editor, "activity-overlap.csv")
     response = confirm(editor, first)
     assert "This preview is out of date" in response.content.decode()
+    editor.post(IMPORT_URL, {"cancel": "", "digest": first.context["digest"]})
     assert Payment.objects.count() == 0
+    confirm(editor, newer)
+    assert Payment.objects.count() == 4
 
 
 def test_failed_import_leaves_nothing_imported(editor, monkeypatch):
