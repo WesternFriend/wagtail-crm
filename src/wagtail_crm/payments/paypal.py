@@ -12,6 +12,9 @@ from decimal import Decimal
 
 from .models import Payment
 
+EVENT_CODE = "Transaction Event Code"
+BALANCE_IMPACT = "Balance Impact"
+
 REQUIRED_COLUMNS = (
     "Date",
     "Time",
@@ -27,8 +30,8 @@ REQUIRED_COLUMNS = (
     "To Email Address",
     "Transaction ID",
     "Reference Txn ID",
-    "Transaction Event Code",
-    "Balance Impact",
+    EVENT_CODE,
+    BALANCE_IMPACT,
 )
 
 # Abbreviations a US PayPal account's export uses; others are skipped with a reason.
@@ -114,8 +117,8 @@ def _unsupported(row: dict[str, str]) -> str | None:
     status = row["Status"].strip()
     if status != "Completed":
         return f"Status {status or '(blank)'} is not imported"
-    code = row["Transaction Event Code"].strip()
-    impact = row["Balance Impact"].strip()
+    code = row[EVENT_CODE].strip()
+    impact = row[BALANCE_IMPACT].strip()
     if code.startswith("T00") and impact == "Debit":
         return f"Outgoing payment ({code})"
     received = code.startswith("T00") and impact == "Credit"
@@ -151,7 +154,7 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
     except ValueError:
         return f"Malformed date or time: {stamp}"
 
-    received = row["Balance Impact"].strip() == "Credit"
+    received = row[BALANCE_IMPACT].strip() == "Credit"
     return Payment(
         transaction_id=transaction_id,
         occurred_at=occurred_at.replace(tzinfo=zone).astimezone(UTC),
@@ -159,7 +162,7 @@ def _payment(row: dict[str, str], transaction_id: str) -> Payment | str:
         # The other party: the sender of money received, the recipient of a refund.
         email=row["From Email Address" if received else "To Email Address"].strip(),
         type=row["Type"].strip(),
-        event_code=row["Transaction Event Code"].strip(),
+        event_code=row[EVENT_CODE].strip(),
         status=row["Status"].strip(),
         currency=row["Currency"].strip(),
         gross=amounts["Gross"],
