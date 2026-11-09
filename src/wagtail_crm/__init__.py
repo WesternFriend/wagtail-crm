@@ -1,1 +1,1 @@
-"""Reusable nonprofit CRM application for Django and Wagtail."""
+"""Wagtail CRM distribution; install its individual domain apps."""

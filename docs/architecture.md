@@ -1,4 +1,12 @@
-# Architecture: first vertical slice
+# Architecture
+
+## Domain-app decision — 2026-11-08
+
+One project and one distribution (`wagtail_crm`) contain one Django app per domain, labelled `wagtail_crm_<domain>`. Contacts is `wagtail_crm.contacts` (`wagtail_crm_contacts`). Later domains may depend on contacts; contacts imports no sibling domain. Do not introduce a shared core or generic audit app without a demonstrated need. There are no sibling domain apps yet, so import-linter adds no value at this stage.
+
+The initial contact slice uses plain columns and Wagtail ModelViewSet, standard actions, permissions, ModelLogEntry and History. Use framework features before bespoke models/views/templates. No JSON name codec, custom snapshots, RevisionMixin or concurrency layer is required. Other records and financial controls below are future architecture, not capabilities implemented by this slice.
+
+For implemented contact semantics and fields, use the [accepted contact architecture spine](../_bmad-output/planning-artifacts/architecture/architecture-wagtail-crm-2026-11-08/ARCHITECTURE-SPINE.md). It supersedes contact-shape proposals here. Financial and deployment sections below remain proposals.
 
 Status: proposed implementation design. Updated: 2026-11-08.
 
@@ -88,6 +96,8 @@ USD-only issuance is the proposed initial limit. Preserve and flag other currenc
 Store timezone-aware timestamps, normalize instants to UTC, and display them in the configured reporting timezone. Use an inclusive start and exclusive end for internal period queries, converting the user-facing covered dates explicitly. Never infer a source timezone from the application server or replace the contribution date with the import date.
 
 ## Wagtail interface and artifacts
+
+Wagtail CMS is the only application UI. The site root redirects to the Wagtail login page. Additional features should use Wagtail's admin extension points wherever possible; no separate public frontend or parallel Django UI is planned.
 
 Use ordinary Django models exposed through Wagtail `ModelViewSet` and custom review/import/issuance views. Permissions apply to the underlying endpoints and services, including direct document downloads and exports. Record state transitions explicitly; saving a model should not silently send letters or issue financial documents.
 

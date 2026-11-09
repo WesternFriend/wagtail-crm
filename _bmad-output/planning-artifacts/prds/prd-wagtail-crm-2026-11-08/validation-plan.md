@@ -71,3 +71,9 @@ Before real operational use, record an accountable person, evidence reference, o
 - Successful database/artifact recovery and confirmed account, update, support and backup ownership.
 
 Pilot subset completion and full annual completion are different outcomes. A cycle may be fully distributed or closed with explicitly accepted distribution exceptions under confirmed policy. No distribution exception waives coverage, identity or financial approval.
+
+## Development handoff — minimal contacts
+
+Validate the six AC-18 tasks using ordinary fields and Wagtail's actions/history on a separate synthetic database. Include organization-to-person changes requiring staff-entered given/family names, single/multiword/non-Latin names, optional details, validation recovery, search/Inspect, retained deletion activity and permission denial. No automatic splitting or unsplit-person editor is supported.
+
+Record developer verification in PR #2 rather than duplicating its changing check counts here. Synthetic developer testing does not establish Editor acceptance or operational financial validation.

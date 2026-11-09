@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from wagtail_crm.models import Contact
+from wagtail_crm.contacts.models import Contact
 
 pytestmark = pytest.mark.django_db
 
@@ -27,3 +27,14 @@ def test_demo_seed_is_disabled_outside_debug(settings):
     with pytest.raises(CommandError, match="only with DEBUG"):
         call_command("seed_demo")
     assert not Contact.objects.exists()
+
+
+def test_seed_does_not_overwrite_staff_edits(settings):
+    settings.DEBUG = True
+    contact = Contact.objects.create(
+        given_name="Edited", family_name="Contact", email="alex@example.invalid"
+    )
+    call_command("seed_demo", verbosity=0)
+    contact.refresh_from_db()
+    assert contact.given_name == "Edited"
+    assert contact.family_name == "Contact"

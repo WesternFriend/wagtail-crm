@@ -23,15 +23,23 @@ The initial interface and standard letters are English; calculations and reporti
 
 PayPal is the first supported source; core donor and contribution records remain processor-neutral. Source-specific adapters must not make the core dependent on PayPal identifiers or rules.
 
-## Standards-based common data models
+Wagtail CMS is the sole UI for CRM workflows. Use its navigation, forms, actions, permissions and interaction conventions as the shared staff experience. Extend Wagtail's admin for workflow-specific screens wherever possible; a separate frontend or public CRM pages are outside the intended product scope. The site root redirects to Wagtail login. This constraint applies to future imports, review, reconciliation and acknowledgment workflows as well as contact management.
 
-- **FR-23:** Adopt a specific, documented set of established standards for common data models rather than inventing local conventions. At minimum, cover people, organizations (including companies and nonprofits), postal addresses, and associated contact details and relationships. Use those standards as the baseline for the processor-neutral core and portable exports; map PayPal and other source representations into that baseline at import boundaries. Keep source identifiers, original evidence and mapping provenance distinct from canonical records. Standardization must not silently merge identities or turn imported facts into approved decisions.
+Simple UX means familiar, task-appropriate fields populated with recorded values, not collapsing known structured data into a text box. Standards guide internal semantics; staff do not assemble schema components, choose separators or manage formatting rules. Apply this principle across the CRM, including future address forms when their agreed scope calls for structured address fields. Names are never split automatically. Finish usable contact management before starting imports or financial features. Before requesting review, the developer must run the app and personally complete creation, finding, editing and inspection for people/organizations, including contact-type changes and single names, optional details and validation recovery; fix confusing interactions directly rather than add instructions around them. This does not expand the current multiline postal-address increment.
 
-Before implementing or materially extending these common models, record the selected standards, versions, authoritative references, supported profile/subset, field and relationship mappings, validation semantics, and any justified extensions or departures in an architecture decision. Evaluate international names and addresses, optional or incomplete data, multiple contact details, person/organization distinctions and relationships, interoperability, implementation effort, maintenance, and compatibility with Apache-licensed distribution. Adopt only the relevant profile; a standard does not require implementing unrelated capabilities or determine financial policy. Reuse suitable maintained libraries where beneficial, with dependency and license review.
+## Common contact data and minimum slice
 
-Acceptance requires representative synthetic people, organizations, international names/addresses and incomplete records to retain their supported meaning through import, storage and export. Document any normalization or information loss; preserve source evidence and expose unsupported cases rather than silently truncating or coercing them. Publish explicit mappings and justified departures so later adapters and adopters can use the same baseline. The existing Contacts scaffold is not evidence of conformance.
+Use Django and Wagtail conventions first, with ordinary fields staff understand. The contact slice supports people with Given name and Family name (either may stand alone), organizations with Name, and one optional email and multiline postal correspondence address. Changing an organization to a person requires staff-entered given and/or family names; the organization name is not split automatically. Names may contain multiword and non-Latin text. Adding a contact establishes no donor, payer, subscriber or recipient role.
 
-Brylie has requested standards adoption as product direction. The particular standards, versions, profile and libraries remain an open technical decision; none is selected by this requirement. Proposed selection owner: Brylie, with staff review of correspondence behavior and representative records.
+The approved staff tasks are [AC-18](acceptance-criteria.md#ac-18--minimum-contact-management). Use Wagtail's standard create/edit/delete actions, permissions, History and Site history. Do not build a parallel audit model, revision workflow, snapshot display or concurrency mechanism for this slice. Last-save-wins is accepted; concurrent-edit protection is deferred until demonstrated need. There are no existing installations; the alpha contacts app starts with a fresh initial migration and no migration-baseline history entries.
+
+One distribution contains one Django app per domain. Contacts owns contact records; later finance, imports and letters may depend on contacts, while contacts imports none of them. No shared core or generic audit app is needed now.
+
+Contact completeness remains separate from donor attribution and delivery readiness. Shared names, addresses or emails do not merge identities. Future confirmed source mappings stay within source/account scope; conflicting evidence requires review. Exact delivery practice remains unresolved; downloadable PDFs, external sending tools and recording actual dispatch are the agreed direction for later increments.
+
+### Future standards and export
+
+Established standards should guide future interoperability when an actual importer or exporter exists. JSContact, CLDR, vCard and Schema.org remain references for that work. Define supported mappings and any losses against real source data then; this slice has no codec, formatting policy or standards-conformance claim. Do not prescribe future storage representations through acceptance criteria.
 
 ## First operational outcome
 
@@ -74,7 +82,7 @@ These responsibilities require confirmation. Account administration, updates, ba
 - **FR-11:** Summarize coverage, reconciliation, ready/blocked donors, exclusions/reasons, missing delivery details, and the exact proposed batch. Support individual exception review and explicit version-bound batch approval of routine ready letters. Record actor, time, scope, and versions. Content changes reopen letter approval; financial changes reopen affected financial approval.
 - **FR-12:** Preserve issued letters and distribution history. Content corrections create linked, newly approved revisions. Corrective dispatch is explicit; retrying an unchanged letter creates another attempt.
 - **FR-22:** Issuance must identify the approved document versions and its outcome. Repeated or interrupted requests must not silently create duplicate issuance or dispatch. Staff can determine which letters were issued and safely resolve pending/failed outcomes. Define the issuance event, recovery behavior, and handling of superseded versions awaiting dispatch before accepting the issuance increment; detailed proposals and open decisions are in `acceptance-criteria.md`.
-- **FR-13:** Initially propose printable PDFs and a manifest for external delivery. Dispatch records identify version, channel, destination, date, actor, and available evidence reference. A staff attestation is not proof of receipt. Generation/download never records dispatch.
+- **FR-13:** Provide downloadable, printable PDFs and a manifest for external delivery, including manual email through existing tools. Dispatch records identify version, channel, destination, date, actor, and available evidence reference. A staff attestation is not proof of receipt. Generation/download never records dispatch, including when the PDF is intended for manual email. Exact delivery practice still needs Editor confirmation.
 - **FR-14:** Keep failed delivery and missing destinations visible. Distinguish fully distributed from closed with accepted distribution exceptions. Follow-up and closure authority require agreement. Distribution exceptions cannot bypass coverage, attribution, or financial gates.
 
 ### Privacy, usability, and continuity
@@ -101,6 +109,8 @@ See `acceptance-criteria.md` for draft gate dependencies, invalidation rules, co
 ## Deferred scope
 
 Live PayPal synchronization, direct website integration, additional processor adapters, application email and automated delivery tracking if external tools suffice, campaigns, portals, fundraising automation, fulfillment, advanced analytics, shared multi-organization hosting, and additional-country reporting rules.
+
+Future enhancement: email issued PDFs directly from the CRM to save the Editor a manual step. This is outside the first cycle; downloadable PDFs and manual external email are sufficient. Revisit after observing the delivery workflow, with sending, confirmation and retry behavior scoped separately.
 
 ## Adoption, configuration, and maintenance
 

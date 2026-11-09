@@ -58,8 +58,8 @@ pass_filenames = false
 
 [[repos.hooks]]
 id = "django-upgrade"
-name = "Check Django 5.2 APIs"
-entry = "uv run --locked django-upgrade --target-version 5.2 --check"
+name = "Check Django 6.1 APIs"
+entry = "uv run --locked django-upgrade --target-version 6.1 --check"
 language = "system"
 types = ["python"]
 exclude = '(^|/)migrations/'
