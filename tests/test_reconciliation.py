@@ -8,6 +8,7 @@ from django.contrib.auth.models import Permission
 from django.test import Client
 from django.urls import reverse
 from wagtail.models import ModelLogEntry
+from wagtail.users.models import UserProfile
 
 from wagtail_crm.payments.models import Payment, Reconciliation, period_is_accepted
 
@@ -197,3 +198,15 @@ def test_panel_lists_only_blockers_inside_the_period(editor, year):
     assert (
         "Payments without a charitable amount to resolve before accepting (1):" in page
     )
+
+
+def test_period_is_shown_in_utc_for_every_staff_member(editor, payment_editor, year):
+    profile = UserProfile.get_for_user(payment_editor)
+    profile.current_time_zone = "America/Los_Angeles"
+    profile.save()
+    create(editor)
+    url = reverse(
+        "wagtail_crm_reconciliations:edit", args=[Reconciliation.objects.get().pk]
+    )
+    page = editor.get(url).content.decode()
+    assert "Jan 1 2026 00:00 to Dec 31 2026 23:59 UTC" in page

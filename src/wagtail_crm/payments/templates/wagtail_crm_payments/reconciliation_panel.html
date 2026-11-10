@@ -1,7 +1,8 @@
+{% load tz %}
 {% if reconciliation.accepted_at %}
     <p><strong>Accepted.</strong> This reconciliation can no longer be changed. History shows who accepted it and when, with the totals at that time.</p>
 {% endif %}
-<p>Period: {{ first|date:"M j Y H:i" }} to {{ last|date:"M j Y H:i" }} UTC. Download PayPal's activity report for this UTC range, filtered to completed USD transactions, and enter its totals below.</p>
+{% timezone "UTC" %}<p>Period: {{ first|date:"M j Y H:i" }} to {{ last|date:"M j Y H:i" }} UTC. Download PayPal's activity report for this UTC range, filtered to completed USD transactions, and enter its totals below.</p>{% endtimezone %}
 <table class="listing">
     <thead><tr><th scope="col"></th><th scope="col">CRM</th><th scope="col">PayPal</th><th scope="col">Difference</th></tr></thead>
     <tbody>
