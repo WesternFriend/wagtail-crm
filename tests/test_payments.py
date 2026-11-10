@@ -112,6 +112,7 @@ def test_repeated_file_has_nothing_new():
         (("Fee", "1.234"), "Malformed Fee: 1.234"),
         (("Net", ""), "Malformed Net: (blank)"),
         (("Transaction ID", ""), "Missing transaction ID"),
+        (("Gross", "-100.00"), "Gross -100.00 does not match Credit"),
     ],
 )
 def test_unreadable_values_skip_the_row(change, reason):
@@ -177,3 +178,11 @@ def test_text_longer_than_its_column_is_skipped():
         "Transaction ID is too long",
         "Name is too long",
     ]
+
+
+def test_refund_with_a_positive_amount_is_skipped():
+    header, *rows = fixture("activity.csv").splitlines()
+    refund = next(r for r in rows if "T1107" in r).replace('"-20.00"', '"20.00"')
+    result = read_activity_csv(header + "\n" + refund + "\n")
+    assert result.payments == []
+    assert [s.reason for s in result.skipped] == ["Gross 20.00 does not match Debit"]

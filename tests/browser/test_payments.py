@@ -119,3 +119,48 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
         gift.refresh_from_db()
         assert gift.donor == Contact.objects.get(display_name="Avery Example")
         assert str(gift.charitable_amount) == "100.00"
+
+    def test_refunded_payment_shows_its_refund(self):
+        common = {
+            "name": "Drew Reader",
+            "email": "drew@example.org",
+            "status": "Completed",
+            "currency": "USD",
+        }
+        Payment.objects.create(
+            transaction_id="GIFT2",
+            occurred_at="2026-04-02T12:00:00Z",
+            type="Website Payment",
+            event_code="T0006",
+            gross="20.00",
+            fee="-0.88",
+            net="19.12",
+            charitable_amount="20.00",
+            **common,
+        )
+        Payment.objects.create(
+            transaction_id="REFUND2",
+            occurred_at="2026-04-09T12:00:00Z",
+            type="Payment Refund",
+            event_code="T1107",
+            gross="-20.00",
+            fee="0.59",
+            net="-19.41",
+            reference_transaction_id="GIFT2",
+            **common,
+        )
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                page = self.sign_in(browser)
+                page.get_by_role("link", name="Payments").click()
+                page.get_by_role("row").filter(has_text="April 2, 2026").filter(
+                    has_text="Drew Reader"
+                ).get_by_role("link").first.click()
+                expect(
+                    page.get_by_text("Adjusted charitable amount: 0.00")
+                ).to_be_visible()
+                page.get_by_role("link", name=re.compile(r"^-20\.00 on ")).click()
+                expect(page.get_by_text("Refund of")).to_be_visible()
+            finally:
+                browser.close()

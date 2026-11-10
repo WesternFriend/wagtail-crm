@@ -6,15 +6,19 @@ from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.formats import date_format
+from django.utils.html import format_html, format_html_join
+from django.utils.timezone import localtime
 from django.views.generic import FormView
 from wagtail.admin.filters import WagtailFilterSet
-from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel
+from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, Panel
+from wagtail.admin.ui.tables import Column
 from wagtail.admin.views.generic.base import WagtailAdminTemplateMixin
-from wagtail.admin.views.generic.models import IndexView
+from wagtail.admin.views.generic.models import IndexView, InspectView
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
 from wagtail.admin.viewsets.model import ModelViewSet
 
-from .models import Payment
+from .models import REFUND_NOT_LINKED, Payment
 from .paypal import ActivityFileError, read_activity_csv
 
 # The uploaded file waits here between preview and confirm, and is removed on
@@ -127,9 +131,19 @@ class PaymentFilterSet(WagtailFilterSet):
         field_name="charitable_amount",
     )
 
+    unmatched_refund = django_filters.BooleanFilter(
+        label="Unmatched refund", method="filter_unmatched_refund"
+    )
+
     class Meta:
         model = Payment
         fields = ["type"]
+
+    def filter_unmatched_refund(self, queryset, name, value):
+        if value is None:
+            return queryset
+        unmatched = queryset.unmatched_refunds()
+        return unmatched if value else queryset.exclude(pk__in=unmatched)
 
     def filter_needs(self, queryset, name, value):
         if value is None:
@@ -141,6 +155,64 @@ class PaymentFilterSet(WagtailFilterSet):
 
 class PaymentIndexView(IndexView):
     add_item_label = "Import PayPal CSV"
+
+    def get_base_queryset(self):
+        return super().get_base_queryset().with_refunded()
+
+
+def refunds_html(payment, action):
+    """A payment's refunds, or a refund's original, linked to `action` pages."""
+    if payment.is_refund:
+        original = payment.refunded_payment
+        if original is None:
+            return format_html(
+                "Original payment {} is not imported. {}",
+                payment.reference_transaction_id,
+                REFUND_NOT_LINKED,
+            )
+        return format_html(
+            'Refund of <a href="{}">{}</a>. {}',
+            reverse(f"wagtail_crm_payments:{action}", args=[original.pk]),
+            original,
+            REFUND_NOT_LINKED,
+        )
+    refunds = list(payment.refunds)
+    if not refunds:
+        return "No refunds"
+    return format_html_join(
+        ", ",
+        '<a href="{}">{} on {}</a>',
+        (
+            (
+                reverse(f"wagtail_crm_payments:{action}", args=[refund.pk]),
+                refund.gross,
+                date_format(localtime(refund.occurred_at)),
+            )
+            for refund in refunds
+        ),
+    )
+
+
+class RefundsPanel(Panel):
+    """Read-only refunds; FieldPanel(read_only) only shows model fields."""
+
+    class BoundPanel(Panel.BoundPanel):
+        template_name = "wagtail_crm_payments/refunds_panel.html"
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.heading = "Refund" if self.instance.is_refund else "Refunds"
+
+        def get_context_data(self, parent_context=None):
+            context = super().get_context_data(parent_context)
+            context["refunds"] = refunds_html(self.instance, "edit")
+            context["payment"] = self.instance
+            return context
+
+
+class PaymentInspectView(InspectView):
+    def get_refunds_display_value(self):
+        return refunds_html(self.object, "inspect")
 
 
 class PaymentViewSet(ModelViewSet):
@@ -160,6 +232,7 @@ class PaymentViewSet(ModelViewSet):
         "gross",
         "charitable_amount",
         "non_charitable_amount",
+        Column("refunded_amount", label="Refunded"),
         "fee",
         "status",
     )
@@ -182,7 +255,10 @@ class PaymentViewSet(ModelViewSet):
         "donor",
         "charitable_amount",
         "non_charitable_amount",
+        "refunds",
+        "adjusted_charitable_amount",
     )
+    inspect_view_class = PaymentInspectView
     copy_view_enabled = False
     panels = (
         MultiFieldPanel(
@@ -210,6 +286,7 @@ class PaymentViewSet(ModelViewSet):
             ],
             heading="From PayPal",
         ),
+        RefundsPanel(),
         FieldPanel("donor"),
         FieldPanel("charitable_amount"),
     )
