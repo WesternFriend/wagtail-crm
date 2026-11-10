@@ -219,6 +219,9 @@ class Payment(models.Model):
             )
 
 
+RECEIVED = "Completed USD payments received."
+
+
 def previous_year_start():
     return date(timezone.now().year - 1, 1, 1)
 
@@ -245,12 +248,10 @@ class Reconciliation(models.Model):
     end = models.DateField(
         default=previous_year_end, help_text="Included in the period."
     )
-    paypal_count = models.PositiveIntegerField(
-        "PayPal count", help_text="Completed USD payments received."
-    )
-    paypal_gross = money("PayPal gross", "Completed USD payments received.")
+    paypal_count = models.PositiveIntegerField("PayPal count", help_text=RECEIVED)
+    paypal_gross = money("PayPal gross", RECEIVED)
     paypal_fees = money("PayPal fees", "As PayPal shows them, usually negative.")
-    paypal_net = money("PayPal net", "Completed USD payments received.")
+    paypal_net = money("PayPal net", RECEIVED)
     paypal_refunds = money(
         "PayPal refunds", "Refund gross as PayPal shows it, usually negative."
     )
