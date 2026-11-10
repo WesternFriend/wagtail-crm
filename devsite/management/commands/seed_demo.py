@@ -35,7 +35,14 @@ class Command(BaseCommand):
             *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts"),
             *Permission.objects.filter(
                 content_type__app_label="wagtail_crm_payments",
-                codename__in=["add_payment", "change_payment", "view_payment"],
+                codename__in=[
+                    "add_payment",
+                    "change_payment",
+                    "view_payment",
+                    "add_reconciliation",
+                    "change_reconciliation",
+                    "view_reconciliation",
+                ],
             ),
             Permission.objects.get(
                 content_type__app_label="wagtailadmin", codename="access_admin"

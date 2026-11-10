@@ -1,10 +1,12 @@
 """Payments imported from a processor's activity export."""
 
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib.admin.decorators import display
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from wagtail_crm.contacts.models import Contact
 
@@ -58,6 +60,28 @@ class PaymentQuerySet(models.QuerySet):
                 output_field=models.DecimalField(max_digits=12, decimal_places=2),
             )
         )
+
+    def in_period(self, start, end):
+        """Rows dated within a reconciliation period (UTC, end exclusive)."""
+        return self.filter(occurred_at__gte=start, occurred_at__lt=end)
+
+    def totals(self):
+        """Received-payment and refund totals, with PayPal's signs."""
+        received = self.exclude_refunds().aggregate(
+            count=models.Count("pk"),
+            gross=models.Sum("gross"),
+            fees=models.Sum("fee"),
+            net=models.Sum("net"),
+        )
+        refunds = self.refunds().aggregate(refunds=models.Sum("gross"))
+        amounts = {**received, **refunds}
+        return {
+            key: value if key == "count" else (value or Decimal(0)).quantize(CENT)
+            for key, value in amounts.items()
+        }
+
+    def needing_charitable_amount(self):
+        return self.exclude_refunds().filter(charitable_amount__isnull=True)
 
 
 class Payment(models.Model):
@@ -193,3 +217,96 @@ class Payment(models.Model):
                     f"{self.gross}."
                 }
             )
+
+
+def previous_year_start():
+    return date(timezone.now().year - 1, 1, 1)
+
+
+def previous_year_end():
+    return date(timezone.now().year - 1, 12, 31)
+
+
+def money(label, help_text):
+    return models.DecimalField(
+        label, max_digits=12, decimal_places=2, help_text=help_text
+    )
+
+
+class Reconciliation(models.Model):
+    """Staff compare a period's imported totals with PayPal's own report.
+
+    Periods run from UTC midnight on `start` to UTC midnight after `end`;
+    time zones only change how dates are displayed. The CRM side is computed
+    live; the PayPal side is what staff entered.
+    """
+
+    start = models.DateField(default=previous_year_start)
+    end = models.DateField(
+        default=previous_year_end, help_text="Included in the period."
+    )
+    paypal_count = models.PositiveIntegerField(
+        "PayPal count", help_text="Completed USD payments received."
+    )
+    paypal_gross = money("PayPal gross", "Completed USD payments received.")
+    paypal_fees = money("PayPal fees", "As PayPal shows them, usually negative.")
+    paypal_net = money("PayPal net", "Completed USD payments received.")
+    paypal_refunds = money(
+        "PayPal refunds", "Refund gross as PayPal shows it, usually negative."
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        ordering = ["-start", "-end"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["start", "end"],
+                name="reconciliation_one_per_period",
+                violation_error_message="A reconciliation for this period exists.",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end__gte=models.F("start")),
+                name="reconciliation_end_after_start",
+                violation_error_message="The end date must not be before the start.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.start.isoformat()} to {self.end.isoformat()}"
+
+    @property
+    def period_range(self):
+        """The UTC instants bounding the period: [start 00:00, end + 1 day 00:00)."""
+        start = datetime.combine(self.start, time.min, tzinfo=UTC)
+        end = datetime.combine(self.end + timedelta(days=1), time.min, tzinfo=UTC)
+        return start, end
+
+    @property
+    def payments(self):
+        return Payment.objects.in_period(*self.period_range)
+
+    def paypal_totals(self):
+        return {
+            "count": self.paypal_count,
+            "gross": self.paypal_gross,
+            "fees": self.paypal_fees,
+            "net": self.paypal_net,
+            "refunds": self.paypal_refunds,
+        }
+
+    def blockers(self):
+        """What must be resolved before staff can accept the period."""
+        payments = self.payments
+        return {
+            "payments without a charitable amount": (
+                payments.needing_charitable_amount()
+            ),
+            "unmatched refunds": payments.unmatched_refunds(),
+        }
+
+
+def period_is_accepted(start, end):
+    """Whether an accepted reconciliation covers the dates (for letters, #9)."""
+    return Reconciliation.objects.filter(
+        accepted_at__isnull=False, start__lte=start, end__gte=end
+    ).exists()

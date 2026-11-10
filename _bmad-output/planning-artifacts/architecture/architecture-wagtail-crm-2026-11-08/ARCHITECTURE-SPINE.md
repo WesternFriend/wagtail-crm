@@ -16,4 +16,4 @@ Imported source values are `editable=False` and change only through an import. S
 
 ## AD-4 — Store UTC, display in each user's time zone
 
-Store timestamps in UTC (`TIME_ZONE` stays UTC). Each staff member sees them in their Wagtail time zone preference. Which zone sets reporting-period boundaries is decided with reconciliation (#8).
+Store timestamps in UTC (`TIME_ZONE` stays UTC). Each staff member sees them in their Wagtail time zone preference. Reporting periods run from UTC midnight to UTC midnight too; time zones only change how dates are displayed.

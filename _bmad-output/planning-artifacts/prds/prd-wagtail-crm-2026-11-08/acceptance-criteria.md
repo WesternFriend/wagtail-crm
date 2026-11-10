@@ -15,7 +15,7 @@ Run the criteria on synthetic data. Amounts are synthetic USD fixture values, no
 | AC-06 | #5 | Upload a CSV, upload the same file again, then upload a file that overlaps it | The repeat upload is rejected. The overlapping file adds only the new transactions, and existing donor links and charitable amounts are unchanged. |
 | AC-07 | #5 | Upload a file containing a malformed amount, an unsupported status and a EUR row | The preview lists each skipped row with its reason. Nothing is dropped silently, and no USD value is invented. |
 | AC-08 | #7 | Open a payment that has a linked refund; separately, find a refund whose payment was not imported | The payment shows the refund and the adjusted charitable amount for staff to review. The unmatched refund is listed as needing review. |
-| AC-10 | #8 | Choose a period, enter PayPal's totals, and accept the reconciliation | Count, gross, fees, net and refunds appear next to the entered totals, and any difference is shown. Staff can accept only when every payment in the period has a charitable amount and no refund is unmatched. Letters cannot be issued until staff accept; History shows who accepted and when. |
+| AC-10 | #8 | Choose a period (whole UTC days), enter PayPal's totals for the same UTC range, and accept the reconciliation | Count, gross, fees, net and refunds appear next to the entered totals, and any difference is shown. Staff can accept only when every payment in the period has a charitable amount and no refund is unmatched. Letters cannot be issued until staff accept; History shows who accepted and when. |
 | AC-12 | #9 | Issue a donor's letter, then edit the contact's address and one payment | The issued PDF and its stored values do not change. |
 | AC-13 | #9 | Issue a correction for an issued letter | A new letter is linked to the earlier one, and the earlier PDF is still available. |
 | AC-14 | #10 | Download an issued letter, record a failed email dispatch, then a successful postal dispatch | Downloading alone leaves the letter unsent. Both attempts are listed with channel, date, outcome and note. Unsent and failed letters can be listed. |
@@ -57,7 +57,7 @@ Use established contact standards when a concrete import/export workflow needs m
 | Decision | Owner | Needed before |
 | --- | --- | --- |
 | Reporting period (default: calendar year) | Editor | Reconciliation (#8) |
-| Timezone for the period, from the PayPal account | Brylie | Reconciliation (#8) |
+| Timezone for the period | Brylie | Decided: periods run from UTC midnight to UTC midnight; time zones only change how dates are displayed (#8) |
 | Refund treatment beyond reducing the contribution | Bookkeeper | Refund review (#7) on real data |
 | Expected totals for the pilot period, confirmed independently of the app | Bookkeeper | Pilot (#12) |
 | Letter wording for the goods-or-services value of a mixed payment | Bookkeeper | Letter preview (#9) |

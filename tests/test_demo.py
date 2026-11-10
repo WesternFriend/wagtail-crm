@@ -22,6 +22,8 @@ def test_demo_seed_is_repeatable_and_does_not_create_logins(
     assert group.permissions.filter(codename="add_payment").exists()
     assert group.permissions.filter(codename="change_payment").exists()
     assert not group.permissions.filter(codename="delete_payment").exists()
+    assert group.permissions.filter(codename="change_reconciliation").exists()
+    assert not group.permissions.filter(codename="delete_reconciliation").exists()
     assert not group.permissions.filter(codename="change_user").exists()
 
 
