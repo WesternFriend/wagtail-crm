@@ -1087,6 +1087,19 @@ wheels = [
 ]
 
 [[package]]
+name = "reportlab"
+version = "5.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "charset-normalizer" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/89/22/c18474be40b9bbb52fdb7051177d4d25f1ea59fada17eb181026411e93b1/reportlab-5.1.0.tar.gz", hash = "sha256:6878200464527e87672d19e9f7cfc6bb890e3a6931e74ac6a1a8d1754aa55671", size = 4109612, upload-time = "2026-10-22T07:26:43.307Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4a/3c/bf68d44f160b44685fc714f746a954c71d0091b3dc4fd3c8670154b44841/reportlab-5.1.0-py3-none-any.whl", hash = "sha256:59fdbaec5efe437095ad1d7292ec9a271c8ca2d3ec75e889c6e61400929b90df", size = 2018647, upload-time = "2026-10-22T07:26:40.754Z" },
+]
+
+[[package]]
 name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1181,6 +1194,15 @@ wheels = [
 ]
 
 [[package]]
+name = "types-reportlab"
+version = "5.1.0.20261104"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/3b/37b677439070293eb8f189b671965da53bf92f88ff985f36f69d25614d45/types_reportlab-5.1.0.20261104.tar.gz", hash = "sha256:5a214b6a53a4f719ce0e8a0081107b54a6d44e0fed25b8e167332a95e3163b17", size = 73428, upload-time = "2026-11-04T08:14:02.731Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/7a/c8ce7d2dd43c79ed05a8f97b573a4549d217983952e20da26e6a8cb21535/types_reportlab-5.1.0.20261104-py3-none-any.whl", hash = "sha256:d1410bafa695bc6f38a3f38426b8393f7311ca69a350e99cefadf6103e254202", size = 113474, upload-time = "2026-11-04T08:14:01.308Z" },
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1259,6 +1281,7 @@ dependencies = [
     { name = "dj-database-url" },
     { name = "django" },
     { name = "django-filter" },
+    { name = "reportlab" },
     { name = "wagtail" },
 ]
 
@@ -1277,6 +1300,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-django" },
     { name = "ruff" },
+    { name = "types-reportlab" },
 ]
 
 [package.metadata]
@@ -1285,6 +1309,7 @@ requires-dist = [
     { name = "django", specifier = ">=6.1.3,<6.2" },
     { name = "django-filter", specifier = ">=23.3" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2,<4" },
+    { name = "reportlab", specifier = ">=5.1,<6" },
     { name = "wagtail", specifier = ">=8.1,<8.2" },
 ]
 provides-extras = ["postgres"]
@@ -1299,6 +1324,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6,<8" },
     { name = "pytest-django", specifier = ">=4.11,<5" },
     { name = "ruff", specifier = ">=0.12,<1" },
+    { name = "types-reportlab", specifier = ">=4.4" },
 ]
 
 [[package]]

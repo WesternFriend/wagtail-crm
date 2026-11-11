@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: reporting workflow proposed; local development scaffold implemented. Updated: 2026-11-08.
+Status: reporting workflow proposed; local development scaffold implemented. Updated: 2026-11-11.
 
 The goal of the first release is one completed, reconciled acknowledgment cycle for Western Friend. There are no delivery-date estimates until the input format and open policies are confirmed.
 
@@ -8,7 +8,7 @@ The goal of the first release is one completed, reconciled acknowledgment cycle 
 
 The repository includes a runnable `devsite` host with SQLite and the `wagtail_crm.contacts` domain app in one reusable distribution. It has a minimal person/organization Contact model, Wagtail model views, a synthetic seed command, permission and CSRF tests, and a real-browser smoke suite. See [Development and testing](development.md) for commands and the manual UI checklist.
 
-The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) and lets staff link each payment to a donor with its charitable amount (#6), shows refunds next to the payments they refund (#7), and reconciles a period's totals against PayPal's (#8); letters are not implemented yet. Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
+The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) and lets staff link each payment to a donor with its charitable amount (#6), shows refunds next to the payments they refund (#7), reconciles a period's totals against PayPal's (#8), and issues a donor's acknowledgment letter for an accepted reconciliation (#9); dispatch records are not implemented yet. Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
 
 ## 0. Confirm the first reporting cycle
 
@@ -30,11 +30,11 @@ Staff link each payment to a donor contact and record its charitable amount, fro
 
 Exit evidence: the synthetic acceptance dataset reconciles; invalid charitable amounts fail on every write path; payments without a charitable amount and unmatched refunds block reconciliation acceptance.
 
-## 3. Preview and issue annual acknowledgments
+## 3. Preview and issue acknowledgment letters
 
-Add organization/letter configuration, explicit period selection, contribution and benefit line rendering, and PDF previews. Add reconciliation acceptance, atomic issuance snapshots, private batch downloads/manifests, and linked revisions that preserve earlier documents.
+Staff preview a letter for one donor and an accepted reconciliation's period: the donor's name and address, each contribution with its charitable and goods-or-services amounts, and the charitable total. Issuing stores the PDF and the values it shows, so later edits to the contact or payments do not change it (AC-12). A correction is a new letter linked to the earlier one, whose PDF stays available (AC-13). Letters are issued one at a time with a plain template; organization configuration and batch issuing wait for a real need (#9).
 
-Exit evidence: the Editor can trace every letter line back to source evidence and a reviewed decision. The mixed-payment acceptance example totals $145, private downloads are enforced, and later edits do not alter issued artifacts.
+Exit evidence: the mixed-payment example totals $145, a letter cannot be issued before its period is accepted, issued PDFs are served only to staff with letter permissions, and later edits do not alter issued letters.
 
 ## 4. Complete distribution and validate the workflow
 

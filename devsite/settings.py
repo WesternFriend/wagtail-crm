@@ -27,6 +27,7 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 INSTALLED_APPS = [
     "wagtail_crm.contacts",
     "wagtail_crm.payments",
+    "wagtail_crm.letters",
     "devsite",
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
@@ -112,6 +113,12 @@ MEDIA_ROOT = DATA_DIR / "media"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    # Issued letter PDFs: outside MEDIA_ROOT, served only through a view that
+    # checks the letter's view permission.
+    "letters": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": DATA_DIR / "letters"},
+    },
 }
 
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}

@@ -10,7 +10,7 @@ from django.urls import reverse
 from wagtail.models import ModelLogEntry
 from wagtail.users.models import UserProfile
 
-from wagtail_crm.payments.models import Payment, Reconciliation, period_is_accepted
+from wagtail_crm.payments.models import Payment, Reconciliation
 
 pytestmark = pytest.mark.django_db
 
@@ -172,16 +172,6 @@ def test_one_reconciliation_per_period(editor, year):
     response = create(editor)
     assert "A reconciliation for this period exists." in response.content.decode()
     assert Reconciliation.objects.count() == 1
-
-
-def test_period_is_accepted_for_letters(editor, year):
-    create(editor)
-    reconciliation = Reconciliation.objects.get()
-    assert not period_is_accepted(date(2026, 1, 1), date(2026, 12, 31))
-    edit(editor, reconciliation, accept="on")
-    assert period_is_accepted(date(2026, 1, 1), date(2026, 12, 31))
-    assert period_is_accepted(date(2026, 3, 1), date(2026, 3, 31))
-    assert not period_is_accepted(date(2026, 12, 1), date(2027, 1, 31))
 
 
 def test_panel_lists_only_blockers_inside_the_period(editor, year):

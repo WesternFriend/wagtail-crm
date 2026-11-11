@@ -17,6 +17,7 @@ class Command(BaseCommand):
                 "given_name": "Alex",
                 "family_name": "Example",
                 "email": "alex@example.invalid",
+                "postal_address": "1 Example Street\nSpringfield, CA 90000",
             },
             {
                 "given_name": "Jordan",
@@ -43,6 +44,11 @@ class Command(BaseCommand):
                     "change_reconciliation",
                     "view_reconciliation",
                 ],
+            ),
+            # Issued letters never change: no change or delete permission.
+            *Permission.objects.filter(
+                content_type__app_label="wagtail_crm_letters",
+                codename__in=["add_letter", "view_letter"],
             ),
             Permission.objects.get(
                 content_type__app_label="wagtailadmin", codename="access_admin"

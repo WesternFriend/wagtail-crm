@@ -304,10 +304,3 @@ class Reconciliation(models.Model):
             ),
             "unmatched refunds": payments.unmatched_refunds(),
         }
-
-
-def period_is_accepted(start, end):
-    """Whether an accepted reconciliation covers the dates (for letters, #9)."""
-    return Reconciliation.objects.filter(
-        accepted_at__isnull=False, start__lte=start, end__gte=end
-    ).exists()
