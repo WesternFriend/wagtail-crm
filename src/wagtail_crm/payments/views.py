@@ -1,4 +1,5 @@
 import hashlib
+from datetime import timedelta
 
 import django_filters
 from django import forms
@@ -6,20 +7,32 @@ from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.formats import date_format
 from django.utils.html import format_html, format_html_join
 from django.utils.timezone import localtime
 from django.views.generic import FormView
 from wagtail.admin.filters import WagtailFilterSet
-from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, Panel
+from wagtail.admin.forms import WagtailAdminModelForm
+from wagtail.admin.panels import (
+    FieldPanel,
+    FieldRowPanel,
+    MultiFieldPanel,
+    ObjectList,
+    Panel,
+)
 from wagtail.admin.ui.tables import Column
 from wagtail.admin.views.generic.base import WagtailAdminTemplateMixin
-from wagtail.admin.views.generic.models import IndexView, InspectView
+from wagtail.admin.views.generic.models import EditView, IndexView, InspectView
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
 from wagtail.admin.viewsets.model import ModelViewSet
+from wagtail.log_actions import log
 
-from .models import REFUND_NOT_LINKED, Payment
+from .models import REFUND_NOT_LINKED, Payment, Reconciliation
 from .paypal import ActivityFileError, read_activity_csv
+
+# Shown in History as "Accepted reconciliation".
+ACCEPT_RECONCILIATION = "wagtail_crm_payments.accept_reconciliation"
 
 # The uploaded file waits here between preview and confirm, and is removed on
 # confirm, cancel, a new upload, or when the session expires.
@@ -294,3 +307,153 @@ class PaymentViewSet(ModelViewSet):
     @property
     def add_view(self):
         return self.construct_view(PaypalImportView)
+
+
+class ReconciliationForm(WagtailAdminModelForm):
+    accept = forms.BooleanField(
+        label="Accept this reconciliation",
+        required=False,
+        help_text="Records who accepted it and when, with the totals shown. "
+        "An accepted reconciliation cannot be changed.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk is None:
+            # Staff see the comparison before accepting it.
+            del self.fields["accept"]
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("accept"):
+            # Compare the dates being saved, not the stored ones.
+            period = Reconciliation(
+                start=cleaned.get("start", self.instance.start),
+                end=cleaned.get("end", self.instance.end),
+            )
+            reasons = [
+                f"{rows.count()} {label}"
+                for label, rows in period.blockers().items()
+                if rows.exists()
+            ]
+            if reasons:
+                self.add_error(
+                    "accept",
+                    "Resolve these payments in the period first: "
+                    + ", ".join(reasons)
+                    + ".",
+                )
+        return cleaned
+
+
+COMPARED = (
+    ("count", "Received payments (completed, USD)"),
+    ("gross", "Gross"),
+    ("fees", "Fees"),
+    ("net", "Net"),
+    ("refunds", "Refunds"),
+)
+
+
+def comparison(reconciliation):
+    """CRM, PayPal and difference for each total."""
+    crm = reconciliation.payments.totals()
+    paypal = reconciliation.paypal_totals()
+    rows = []
+    for key, label in COMPARED:
+        entered = paypal[key]
+        difference = None if entered is None else crm[key] - entered
+        rows.append((label, crm[key], entered, difference))
+    return crm, rows
+
+
+class ReconciliationPanel(Panel):
+    """The live comparison; FieldPanel(read_only) only shows model fields."""
+
+    class BoundPanel(Panel.BoundPanel):
+        template_name = "wagtail_crm_payments/reconciliation_panel.html"
+
+        def get_context_data(self, parent_context=None):
+            context = super().get_context_data(parent_context)
+            reconciliation = self.instance
+            start, end = reconciliation.period_range
+            context.update(
+                reconciliation=reconciliation,
+                first=start,
+                last=end - timedelta(minutes=1),
+                rows=comparison(reconciliation)[1],
+                # Listed here: the payment list has no UTC period filter.
+                blockers=[
+                    (
+                        label,
+                        [
+                            (reverse("wagtail_crm_payments:edit", args=[p.pk]), p)
+                            for p in rows
+                        ],
+                    )
+                    for label, rows in reconciliation.blockers().items()
+                ],
+            )
+            return context
+
+
+class ReconciliationEditView(EditView):
+    def post(self, request, *args, **kwargs):
+        if self.get_object().accepted_at:
+            # Reopening an accepted reconciliation is deferred (AC trim).
+            messages.error(request, "This reconciliation is accepted.")
+            return redirect(request.path)
+        return super().post(request, *args, **kwargs)
+
+    def save_instance(self):
+        instance = super().save_instance()
+        if self.form.cleaned_data.get("accept"):
+            instance.accepted_at = timezone.now()
+            instance.save(update_fields=["accepted_at"])
+            crm, _ = comparison(instance)
+            log(
+                instance=instance,
+                action=ACCEPT_RECONCILIATION,
+                data={
+                    "crm": {key: str(value) for key, value in crm.items()},
+                    "paypal": {
+                        key: str(value)
+                        for key, value in instance.paypal_totals().items()
+                    },
+                },
+            )
+        return instance
+
+
+class ReconciliationViewSet(ModelViewSet):
+    model = Reconciliation
+    icon = "tasks"
+    menu_label = "Reconciliations"
+    add_to_admin_menu = True
+    url_prefix = "crm/reconciliations"
+    url_namespace = "wagtail_crm_reconciliations"
+    edit_view_class = ReconciliationEditView
+    list_display = ("__str__", "accepted_at")
+    copy_view_enabled = False
+    edit_handler = ObjectList(
+        [
+            FieldRowPanel([FieldPanel("start"), FieldPanel("end")]),
+            ReconciliationPanel(heading="Comparison"),
+            MultiFieldPanel(
+                [
+                    FieldPanel("paypal_count"),
+                    FieldRowPanel(
+                        [
+                            FieldPanel("paypal_gross"),
+                            FieldPanel("paypal_fees"),
+                            FieldPanel("paypal_net"),
+                        ]
+                    ),
+                    FieldPanel("paypal_refunds"),
+                ],
+                heading="From PayPal's report",
+            ),
+            FieldPanel("accept"),
+        ],
+        base_form_class=ReconciliationForm,
+    )

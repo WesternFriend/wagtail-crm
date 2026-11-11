@@ -28,7 +28,14 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
             ),
             *Permission.objects.filter(
                 content_type__app_label="wagtail_crm_payments",
-                codename__in=["add_payment", "change_payment", "view_payment"],
+                codename__in=[
+                    "add_payment",
+                    "change_payment",
+                    "view_payment",
+                    "add_reconciliation",
+                    "change_reconciliation",
+                    "view_reconciliation",
+                ],
             ),
             *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts"),
         )
@@ -162,5 +169,42 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
                 ).to_be_visible()
                 page.get_by_role("link", name=re.compile(r"^-20\.00 on ")).click()
                 expect(page.get_by_text("Refund of")).to_be_visible()
+            finally:
+                browser.close()
+
+    def test_reconcile_and_accept_a_year(self):
+        Payment.objects.create(
+            transaction_id="GIFT3",
+            occurred_at="2026-03-01T12:00:00Z",
+            name="Avery Example",
+            type="Donation Payment",
+            event_code="T0013",
+            status="Completed",
+            currency="USD",
+            gross="100.00",
+            fee="-3.00",
+            net="97.00",
+            charitable_amount="100.00",
+        )
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                page = self.sign_in(browser)
+                page.get_by_role("link", name="Reconciliations").click()
+                page.get_by_role("link", name="Add reconciliation").click()
+                page.get_by_label("Start").fill("2026-01-01")
+                page.get_by_label("End").fill("2026-12-31")
+                page.get_by_label("PayPal count").fill("1")
+                page.get_by_label("PayPal gross").fill("110.00")
+                page.get_by_label("PayPal fees").fill("-3.00")
+                page.get_by_label("PayPal net").fill("97.00")
+                page.get_by_label("PayPal refunds").fill("0")
+                page.get_by_role("button", name="Create").click()
+                page.get_by_role("link", name="2026-01-01 to 2026-12-31").click()
+                expect(page.get_by_text("-10.00", exact=True)).to_be_visible()
+                page.get_by_role("checkbox", name="Accept this reconciliation").check()
+                page.get_by_role("button", name="Save").click()
+                page.get_by_role("link", name="2026-01-01 to 2026-12-31").click()
+                expect(page.get_by_text("can no longer be changed")).to_be_visible()
             finally:
                 browser.close()

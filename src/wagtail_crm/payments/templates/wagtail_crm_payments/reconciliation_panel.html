@@ -1,0 +1,30 @@
+{% load tz %}
+{% if reconciliation.accepted_at %}
+    <p><strong>Accepted.</strong> This reconciliation can no longer be changed. History shows who accepted it and when, with the totals at that time.</p>
+{% endif %}
+{% timezone "UTC" %}<p>Period: {{ first|date:"M j Y H:i" }} to {{ last|date:"M j Y H:i" }} UTC. Download PayPal's activity report for this UTC range, filtered to completed USD transactions, and enter its totals below.</p>{% endtimezone %}
+<table class="listing">
+    <thead><tr><th scope="col"></th><th scope="col">CRM</th><th scope="col">PayPal</th><th scope="col">Difference</th></tr></thead>
+    <tbody>
+        {% for label, crm, paypal, difference in rows %}
+            <tr>
+                <th scope="row">{{ label }}</th>
+                <td>{{ crm }}</td>
+                <td>{{ paypal|default_if_none:"" }}</td>
+                <td>{% if difference is None %}{% elif difference %}<strong>{{ difference }}</strong>{% else %}None{% endif %}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% for label, payments in blockers %}
+    {% if payments %}
+        <p>{{ label|capfirst }} to resolve before accepting ({{ payments|length }}):</p>
+        <ul>
+            {% for url, payment in payments %}
+                <li><a href="{{ url }}">{{ payment.occurred_at|date:"M j Y" }} {{ payment }} {{ payment.gross }}</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No {{ label }}.</p>
+    {% endif %}
+{% endfor %}
