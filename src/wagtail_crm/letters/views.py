@@ -39,9 +39,10 @@ class LetterForm(WagtailAdminModelForm):
         pk = (
             self.data.get("corrects") if self.is_bound else self.initial.get("corrects")
         )
+        # A malformed id is no correction; the hidden field then rejects it.
         self.correcting = (
             Letter.objects.filter(pk=pk, corrected_by__isnull=True).first()
-            if pk
+            if str(pk or "").isdigit()
             else None
         )
         if self.correcting:
@@ -71,7 +72,11 @@ class LetterForm(WagtailAdminModelForm):
                 None, f"Record a charitable amount for these payments first: {listed}."
             )
             return
-        self.values = letter_values(donor, reconciliation, self.correcting)
+        # Issuing saves exactly these values, so what was checked is what is kept.
+        self.issued_at = timezone.now()
+        self.values = letter_values(
+            donor, reconciliation, self.correcting, self.issued_at
+        )
         if not self.values["lines"]:
             self.add_error(None, "This donor has no contributions in this period.")
 
@@ -130,10 +135,8 @@ class LetterCreateView(CreateView):
 
     def save_instance(self):
         letter = self.form.instance
-        letter.issued_at = timezone.now()
-        letter.values = letter_values(
-            letter.donor, letter.reconciliation, self.form.correcting, letter.issued_at
-        )
+        letter.issued_at = self.form.issued_at
+        letter.values = self.form.values
         letter.pdf.save(
             "letter.pdf", ContentFile(render_pdf(letter.values)), save=False
         )

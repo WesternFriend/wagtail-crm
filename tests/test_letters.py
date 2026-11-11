@@ -317,3 +317,9 @@ def test_mixed_payments_total_their_charitable_parts(editor, avery, year):
     ]
     assert lines == [("GIFT1", "100.00", "0.00"), ("PATRON1", "45.00", "45.00")]
     assert values["total"] == "145.00"
+
+
+def test_malformed_correction_link_shows_the_form(editor):
+    response = editor.get(ADD_URL, {"corrects": "invalid"})
+    assert response.status_code == 200
+    assert "Choose a contact" in response.content.decode()
