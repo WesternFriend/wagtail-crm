@@ -21,6 +21,7 @@ from wagtail.log_actions import log
 from .models import Letter, letter_values, needing_charitable_amount
 from .pdf import render_pdf
 
+ISSUE = "Issue letter"
 # Shown in History as "Issued letter".
 ISSUE_LETTER = "wagtail_crm_letters.issue"
 
@@ -57,19 +58,22 @@ class LetterForm(WagtailAdminModelForm):
             if self.correcting
             else (cleaned.get("donor"), cleaned.get("reconciliation"))
         )
-        if donor is None or reconciliation is None:
-            return cleaned
+        if donor is not None and reconciliation is not None:
+            self.check_contributions(donor, reconciliation)
+        return cleaned
+
+    def check_contributions(self, donor, reconciliation):
+        """Refuse a letter with undecided payments or nothing to acknowledge."""
         blocking = needing_charitable_amount(donor, reconciliation)
         if blocking.exists():
             listed = ", ".join(str(payment) for payment in blocking)
             self.add_error(
                 None, f"Record a charitable amount for these payments first: {listed}."
             )
-            return cleaned
+            return
         self.values = letter_values(donor, reconciliation, self.correcting)
         if not self.values["lines"]:
             self.add_error(None, "This donor has no contributions in this period.")
-        return cleaned
 
 
 class CorrectionPanel(Panel):
@@ -103,13 +107,13 @@ def corrects_label(letter):
 
 
 class LetterIndexView(IndexView):
-    add_item_label = "Issue letter"
+    add_item_label = ISSUE
 
 
 class LetterCreateView(CreateView):
     inspect_url_name = None
-    page_title = "Issue letter"
-    submit_button_label = "Issue letter"
+    page_title = ISSUE
+    submit_button_label = ISSUE
     success_message = "Issued %(object)s."
 
     def get_initial(self):
