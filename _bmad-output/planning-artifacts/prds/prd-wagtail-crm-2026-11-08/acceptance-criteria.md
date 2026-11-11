@@ -60,7 +60,7 @@ Use established contact standards when a concrete import/export workflow needs m
 | Timezone for the period | Brylie | Decided: periods run from UTC midnight to UTC midnight; time zones only change how dates are displayed (#8) |
 | Refund treatment beyond reducing the contribution | Bookkeeper | Refund review (#7) on real data |
 | Expected totals for the pilot period, confirmed independently of the app | Bookkeeper | Pilot (#12) |
-| Letter wording for the goods-or-services value of a mixed payment | Bookkeeper | Letter preview (#9) |
+| Letter wording for the goods-or-services value of a mixed payment | Bookkeeper | Real letters (#12). The plain #9 template shows a "Goods or services" column for each payment until then |
 
 ## Development increments versus release completion
 

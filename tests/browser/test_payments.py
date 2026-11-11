@@ -1,15 +1,18 @@
 import os
 import re
+import tempfile
 from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.core.files.storage import FileSystemStorage
 from playwright.sync_api import expect, sync_playwright
 
 from wagtail_crm.contacts.models import Contact
-from wagtail_crm.payments.models import Payment
+from wagtail_crm.letters.models import Letter
+from wagtail_crm.payments.models import Payment, Reconciliation
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "paypal"
 
@@ -19,6 +22,12 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
     serialized_rollback = True
 
     def setUp(self):
+        # Issued PDFs go to a temporary folder, not the development data.
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        field = Letter._meta.get_field("pdf")
+        self.addCleanup(setattr, field, "storage", field.storage)
+        field.storage = FileSystemStorage(folder.name)
         user = get_user_model().objects.create_user(
             username="ui-importer", password="synthetic-browser-password", is_staff=True
         )
@@ -38,6 +47,10 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
                 ],
             ),
             *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts"),
+            *Permission.objects.filter(
+                content_type__app_label="wagtail_crm_letters",
+                codename__in=["add_letter", "view_letter"],
+            ),
         )
 
     def sign_in(self, browser):
@@ -208,3 +221,68 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
                 expect(page.get_by_text("can no longer be changed")).to_be_visible()
             finally:
                 browser.close()
+
+    def test_preview_issue_and_correct_a_letter(self):
+        avery = Contact.objects.create(
+            given_name="Avery", family_name="Example", postal_address="1 Example Street"
+        )
+        Payment.objects.create(
+            transaction_id="GIFT4",
+            occurred_at="2026-03-01T12:00:00Z",
+            name="Avery Example",
+            type="Donation Payment",
+            event_code="T0013",
+            status="Completed",
+            currency="USD",
+            gross="100.00",
+            fee="-3.00",
+            net="97.00",
+            donor=avery,
+            charitable_amount="100.00",
+        )
+        Reconciliation.objects.create(
+            start="2026-01-01",
+            end="2026-12-31",
+            paypal_count=1,
+            paypal_gross="100.00",
+            paypal_fees="-3.00",
+            paypal_net="97.00",
+            paypal_refunds="0",
+            accepted_at="2027-01-05T12:00:00Z",
+        )
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                page = self.sign_in(browser)
+                page.get_by_role("link", name="Letters").click()
+                page.get_by_role("link", name="Issue letter").click()
+                page.get_by_role("button", name="Choose a contact").click()
+                modal = page.get_by_role("dialog")
+                modal.get_by_role("link", name="Avery Example").click()
+                expect(modal).to_be_hidden()
+                page.get_by_role("combobox", name="Period").select_option(
+                    label="2026-01-01 to 2026-12-31"
+                )
+                with page.context.expect_event(
+                    "response",
+                    lambda r: r.headers.get("content-type") == "application/pdf",
+                ) as preview:
+                    page.get_by_role("button", name="Preview PDF").click()
+                assert preview.value.ok
+
+                page.get_by_role("button", name="Issue letter").click()
+                expect(page.get_by_text("Issued Avery Example")).to_be_visible()
+                expect(page.get_by_text("GIFT4: 100.00 charitable")).to_be_visible()
+                with page.expect_download() as download:
+                    page.get_by_role("link", name="Download PDF").click()
+                assert download.value.suggested_filename.endswith(".pdf")
+
+                page.get_by_role("link", name="Issue correction").click()
+                expect(page.get_by_text("This letter corrects")).to_be_visible()
+                page.get_by_role("button", name="Issue letter").click()
+                expect(page.get_by_text("the letter dated")).to_be_visible()
+            finally:
+                browser.close()
+        # Preview saved nothing: only the original and its correction exist.
+        assert Letter.objects.count() == 2
+        assert Letter.objects.filter(corrects__isnull=False).count() == 1

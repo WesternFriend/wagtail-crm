@@ -1,0 +1,292 @@
+from django import forms
+from django.core.files.base import ContentFile
+from django.http import FileResponse, HttpResponse
+from django.shortcuts import get_object_or_404
+from django.template.defaultfilters import linebreaksbr
+from django.urls import path, reverse
+from django.utils import timezone
+from django.utils.cache import patch_cache_control
+from django.utils.functional import cached_property
+from django.utils.html import format_html, format_html_join
+from django.views.generic import View
+from wagtail.admin.forms import WagtailAdminModelForm
+from wagtail.admin.panels import FieldPanel, ObjectList, Panel
+from wagtail.admin.ui.tables import Column
+from wagtail.admin.views.generic.models import CreateView, IndexView, InspectView
+from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
+from wagtail.admin.viewsets.model import ModelViewSet
+from wagtail.admin.widgets import HeaderButton
+from wagtail.log_actions import log
+
+from .models import Letter, letter_values, needing_charitable_amount
+from .pdf import render_pdf
+
+# Shown in History as "Issued letter".
+ISSUE_LETTER = "wagtail_crm_letters.issue"
+
+
+def private(response):
+    """Letters hold donor data: no shared cache may keep them."""
+    patch_cache_control(response, private=True, no_store=True)
+    return response
+
+
+class LetterForm(WagtailAdminModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["corrects"].widget = forms.HiddenInput()
+        pk = (
+            self.data.get("corrects") if self.is_bound else self.initial.get("corrects")
+        )
+        self.correcting = (
+            Letter.objects.filter(pk=pk, corrected_by__isnull=True).first()
+            if pk
+            else None
+        )
+        if self.correcting:
+            # A correction keeps the original's donor and period.
+            del self.fields["donor"]
+            del self.fields["reconciliation"]
+            self.instance.donor = self.correcting.donor
+            self.instance.reconciliation = self.correcting.reconciliation
+
+    def clean(self):
+        cleaned = super().clean()
+        donor, reconciliation = (
+            (self.correcting.donor, self.correcting.reconciliation)
+            if self.correcting
+            else (cleaned.get("donor"), cleaned.get("reconciliation"))
+        )
+        if donor is None or reconciliation is None:
+            return cleaned
+        blocking = needing_charitable_amount(donor, reconciliation)
+        if blocking.exists():
+            listed = ", ".join(str(payment) for payment in blocking)
+            self.add_error(
+                None, f"Record a charitable amount for these payments first: {listed}."
+            )
+            return cleaned
+        self.values = letter_values(donor, reconciliation, self.correcting)
+        if not self.values["lines"]:
+            self.add_error(None, "This donor has no contributions in this period.")
+        return cleaned
+
+
+class CorrectionPanel(Panel):
+    """Which letter a correction replaces; shown only when correcting."""
+
+    class BoundPanel(Panel.BoundPanel):
+        template_name = "wagtail_crm_letters/correction_panel.html"
+
+        def is_shown(self):
+            return self.form.correcting is not None
+
+        def get_context_data(self, parent_context=None):
+            context = super().get_context_data(parent_context)
+            context["correcting"] = self.form.correcting
+            return context
+
+
+class PreviewPanel(Panel):
+    """The preview button, with the hidden field naming a corrected letter."""
+
+    def get_form_options(self):
+        return {"fields": ["corrects"]}
+
+    class BoundPanel(Panel.BoundPanel):
+        template_name = "wagtail_crm_letters/preview_panel.html"
+
+
+def corrects_label(letter):
+    """Name the earlier letter by its date: both share the donor and period."""
+    return f"Letter dated {letter.corrects.date}" if letter.corrects else ""
+
+
+class LetterIndexView(IndexView):
+    add_item_label = "Issue letter"
+
+
+class LetterCreateView(CreateView):
+    inspect_url_name = None
+    page_title = "Issue letter"
+    submit_button_label = "Issue letter"
+    success_message = "Issued %(object)s."
+
+    def get_initial(self):
+        return {**super().get_initial(), "corrects": self.request.GET.get("corrects")}
+
+    def form_valid(self, form):
+        if "preview" in self.request.POST:
+            response = HttpResponse(
+                render_pdf(form.values), content_type="application/pdf"
+            )
+            response["Content-Disposition"] = 'inline; filename="preview.pdf"'
+            return private(response)
+        return super().form_valid(form)
+
+    def save_instance(self):
+        letter = self.form.instance
+        letter.issued_at = timezone.now()
+        letter.values = letter_values(
+            letter.donor, letter.reconciliation, self.form.correcting, letter.issued_at
+        )
+        letter.pdf.save(
+            "letter.pdf", ContentFile(render_pdf(letter.values)), save=False
+        )
+        letter = super().save_instance()
+        log(
+            instance=letter,
+            action=ISSUE_LETTER,
+            data={"total": letter.values["total"], "corrects": letter.corrects_id},
+        )
+        return letter
+
+    def get_success_url(self):
+        return reverse(self.inspect_url_name, args=[self.object.pk])
+
+    def get_success_buttons(self):
+        return []
+
+
+class LetterInspectView(InspectView):
+    pdf_url_name = None
+    add_url_name = None
+    inspect_url_name = None
+
+    @cached_property
+    def header_buttons(self):
+        letter = self.object
+        buttons = [
+            HeaderButton(
+                "Download PDF",
+                url=reverse(self.pdf_url_name, args=[letter.pk]),
+                icon_name="doc-full",
+            )
+        ]
+        if letter.correction is None and self.permission_policy.user_has_permission(
+            self.request.user, "add"
+        ):
+            buttons.append(
+                HeaderButton(
+                    "Issue correction",
+                    url=reverse(self.add_url_name) + f"?corrects={letter.pk}",
+                    icon_name="edit",
+                )
+            )
+        return buttons
+
+    def get_corrects_display_value(self):
+        return self.link(self.object.corrects) or "Not a correction"
+
+    def get_correction_display_value(self):
+        later = self.object.correction
+        if later is None:
+            return "Not corrected"
+        return format_html("Superseded by {}", self.link(later))
+
+    def get_contributions_display_value(self):
+        return format_html_join(
+            "",
+            "<div>{} {}: {} charitable, {} for goods or services</div>",
+            (
+                (
+                    line["date"],
+                    line["transaction_id"],
+                    line["amount"],
+                    line["goods_or_services"],
+                )
+                for line in self.object.values["lines"]
+            ),
+        )
+
+    def get_total_display_value(self):
+        return self.object.values["total"]
+
+    def get_address_display_value(self):
+        return linebreaksbr(self.object.values["address"]) or "No address"
+
+    def link(self, letter):
+        if letter is None:
+            return None
+        return format_html(
+            '<a href="{}">the letter dated {}</a>',
+            reverse(self.inspect_url_name, args=[letter.pk]),
+            letter.date.isoformat(),
+        )
+
+
+class LetterPDFView(PermissionCheckedMixin, View):
+    # Without a model the mixin finds no permission policy and lets
+    # everyone through; construct_view only passes attributes the class has.
+    model = Letter
+    permission_required = "view"
+
+    def get(self, request, pk):
+        letter = get_object_or_404(Letter, pk=pk)
+        response = FileResponse(
+            letter.pdf.open("rb"),
+            content_type="application/pdf",
+            as_attachment=True,
+            filename=f"letter-{letter.pk}.pdf",
+        )
+        return private(response)
+
+
+class LetterViewSet(ModelViewSet):
+    model = Letter
+    icon = "mail"
+    menu_label = "Letters"
+    add_to_admin_menu = True
+    url_prefix = "crm/letters"
+    url_namespace = "wagtail_crm_letters"
+    index_view_class = LetterIndexView
+    add_view_class = LetterCreateView
+    inspect_view_enabled = True
+    inspect_view_class = LetterInspectView
+    copy_view_enabled = False
+    list_display = (
+        "__str__",
+        "issued_at",
+        Column("corrects", label="Correction of", accessor=corrects_label),
+    )
+    inspect_view_fields = (
+        "donor",
+        "address",
+        "reconciliation",
+        "issued_at",
+        "contributions",
+        "total",
+        "corrects",
+        "correction",
+    )
+    edit_handler = ObjectList(
+        [
+            CorrectionPanel(heading="Correction"),
+            FieldPanel("donor"),
+            FieldPanel("reconciliation"),
+            PreviewPanel(heading="Preview"),
+        ],
+        base_form_class=LetterForm,
+    )
+
+    def get_inspect_view_kwargs(self, **kwargs):
+        return super().get_inspect_view_kwargs(
+            pdf_url_name=self.get_url_name("pdf"),
+            add_url_name=self.get_url_name("add"),
+            **kwargs,
+        )
+
+    def get_add_view_kwargs(self, **kwargs):
+        return super().get_add_view_kwargs(
+            inspect_url_name=self.get_url_name("inspect"), **kwargs
+        )
+
+    @property
+    def pdf_view(self):
+        return self.construct_view(LetterPDFView)
+
+    def get_urlpatterns(self):
+        return [
+            *super().get_urlpatterns(),
+            path("pdf/<int:pk>/", self.pdf_view, name="pdf"),
+        ]
