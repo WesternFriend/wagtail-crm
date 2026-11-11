@@ -1,6 +1,6 @@
 from django import forms
 from django.core.files.base import ContentFile
-from django.http import FileResponse, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import linebreaksbr
 from django.urls import path, reverse
@@ -39,12 +39,8 @@ class LetterForm(WagtailAdminModelForm):
         pk = (
             self.data.get("corrects") if self.is_bound else self.initial.get("corrects")
         )
-        # A malformed id is no correction; the hidden field then rejects it.
-        self.correcting = (
-            Letter.objects.filter(pk=pk, corrected_by__isnull=True).first()
-            if str(pk or "").isdigit()
-            else None
-        )
+        # The view answers 404 for an id that names no letter.
+        self.correcting = Letter.objects.filter(pk=pk).first() if pk else None
         if self.correcting:
             # A correction keeps the original's donor and period.
             del self.fields["donor"]
@@ -54,6 +50,15 @@ class LetterForm(WagtailAdminModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        later = self.correcting and self.correcting.correction
+        if later:
+            # Another tab, or an old link, already corrected this letter.
+            self.add_error(
+                None,
+                f"This letter was already corrected by the letter dated {later.date}. "
+                "Correct that letter instead.",
+            )
+            return cleaned
         donor, reconciliation = (
             (self.correcting.donor, self.correcting.reconciliation)
             if self.correcting
@@ -121,8 +126,28 @@ class LetterCreateView(CreateView):
     submit_button_label = ISSUE
     success_message = "Issued %(object)s."
 
+    # get and post run after the permission check in dispatch.
+    def get(self, request, *args, **kwargs):
+        self.require_letter(request.GET.get("corrects"))
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self.require_letter(request.POST.get("corrects"))
+        return super().post(request, *args, **kwargs)
+
+    @staticmethod
+    def require_letter(pk):
+        """A correction must name an existing letter."""
+        if pk and not (pk.isdigit() and Letter.objects.filter(pk=pk).exists()):
+            raise Http404
+
     def get_initial(self):
         return {**super().get_initial(), "corrects": self.request.GET.get("corrects")}
+
+    def get_error_message(self):
+        if "preview" in self.request.POST:
+            return "The letter can't be previewed or issued yet."
+        return super().get_error_message()
 
     def form_valid(self, form):
         if "preview" in self.request.POST:
@@ -140,7 +165,14 @@ class LetterCreateView(CreateView):
         letter.pdf.save(
             "letter.pdf", ContentFile(render_pdf(letter.values)), save=False
         )
-        letter = super().save_instance()
+        # One History entry, "Issued letter", instead of "Created" as well.
+        self.action_class(
+            letter,
+            user=self.request.user,
+            form=self.form,
+            sort_order_field=self.sort_order_field,
+            log_action=False,
+        ).execute(skip_permission_checks=True)
         log(
             instance=letter,
             action=ISSUE_LETTER,
@@ -205,9 +237,6 @@ class LetterInspectView(InspectView):
                 for line in self.object.values["lines"]
             ),
         )
-
-    def get_total_display_value(self):
-        return self.object.values["total"]
 
     def get_address_display_value(self):
         return linebreaksbr(self.object.values["address"]) or "No address"

@@ -189,7 +189,13 @@ def test_a_letter_is_corrected_only_once(editor, avery, year):
     issue(editor, avery, year)
     original = Letter.objects.get()
     issue(editor, corrects=original)
-    issue(editor, corrects=original)
+    correction = Letter.objects.get(corrects=original)
+    # A second tab, or an old link, tries the same correction again.
+    response = issue(editor, corrects=original)
+    assert (
+        f"already corrected by the letter dated {correction.date}"
+        in response.content.decode()
+    )
     assert Letter.objects.count() == 2
 
 
@@ -319,7 +325,20 @@ def test_mixed_payments_total_their_charitable_parts(editor, avery, year):
     assert values["total"] == "145.00"
 
 
-def test_malformed_correction_link_shows_the_form(editor):
-    response = editor.get(ADD_URL, {"corrects": "invalid"})
-    assert response.status_code == 200
-    assert "Choose a contact" in response.content.decode()
+@pytest.mark.parametrize("pk", ["invalid", "999"])
+def test_correction_link_must_name_a_letter(editor, pk):
+    assert editor.get(ADD_URL, {"corrects": pk}).status_code == 404
+    assert editor.post(ADD_URL, {"corrects": pk}).status_code == 404
+
+
+def test_issuing_logs_one_history_entry(editor, avery, year):
+    payment("GIFT1", donor=avery, charitable_amount="60.00")
+    issue(editor, avery, year)
+    letter = Letter.objects.get()
+    entries = ModelLogEntry.objects.filter(object_id=str(letter.pk))
+    assert [entry.action for entry in entries] == ["wagtail_crm_letters.issue"]
+
+
+def test_preview_errors_say_nothing_was_issued(editor, avery, year):
+    response = issue(editor, avery, year, preview="1")
+    assert "can&#x27;t be previewed or issued yet" in response.content.decode()

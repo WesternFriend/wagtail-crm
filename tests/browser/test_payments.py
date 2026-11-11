@@ -1,13 +1,11 @@
 import os
 import re
-import tempfile
 from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.core.files.storage import FileSystemStorage
 from playwright.sync_api import expect, sync_playwright
 
 from wagtail_crm.contacts.models import Contact
@@ -22,12 +20,6 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
     serialized_rollback = True
 
     def setUp(self):
-        # Issued PDFs go to a temporary folder, not the development data.
-        folder = tempfile.TemporaryDirectory()
-        self.addCleanup(folder.cleanup)
-        field = Letter._meta.get_field("pdf")
-        self.addCleanup(setattr, field, "storage", field.storage)
-        field.storage = FileSystemStorage(folder.name)
         user = get_user_model().objects.create_user(
             username="ui-importer", password="synthetic-browser-password", is_staff=True
         )
