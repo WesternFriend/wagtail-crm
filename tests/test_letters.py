@@ -325,7 +325,7 @@ def test_mixed_payments_total_their_charitable_parts(editor, avery, year):
     assert values["total"] == "145.00"
 
 
-@pytest.mark.parametrize("pk", ["invalid", "999"])
+@pytest.mark.parametrize("pk", ["invalid", "999", "²"])
 def test_correction_link_must_name_a_letter(editor, pk):
     assert editor.get(ADD_URL, {"corrects": pk}).status_code == 404
     assert editor.post(ADD_URL, {"corrects": pk}).status_code == 404

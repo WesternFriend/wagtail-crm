@@ -138,7 +138,7 @@ class LetterCreateView(CreateView):
     @staticmethod
     def require_letter(pk):
         """A correction must name an existing letter."""
-        if pk and not (pk.isdigit() and Letter.objects.filter(pk=pk).exists()):
+        if pk and not (pk.isdecimal() and Letter.objects.filter(pk=pk).exists()):
             raise Http404
 
     def get_initial(self):
