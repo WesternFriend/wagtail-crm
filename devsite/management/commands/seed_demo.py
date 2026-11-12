@@ -48,7 +48,14 @@ class Command(BaseCommand):
             # Issued letters never change: no change or delete permission.
             *Permission.objects.filter(
                 content_type__app_label="wagtail_crm_letters",
-                codename__in=["add_letter", "view_letter"],
+                codename__in=[
+                    "add_letter",
+                    "view_letter",
+                    # Dispatches can be corrected but not deleted.
+                    "add_dispatch",
+                    "change_dispatch",
+                    "view_dispatch",
+                ],
             ),
             Permission.objects.get(
                 content_type__app_label="wagtailadmin", codename="access_admin"
