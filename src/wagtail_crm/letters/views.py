@@ -36,6 +36,7 @@ from .models import (
 from .pdf import render_pdf
 
 ISSUE = "Issue letter"
+RECORD_DISPATCH = "Record dispatch"
 # Shown in History as "Issued letter".
 ISSUE_LETTER = "wagtail_crm_letters.issue"
 
@@ -238,7 +239,7 @@ class LetterInspectView(InspectView):
         if dispatches.user_has_permission(self.request.user, "add"):
             buttons.append(
                 HeaderButton(
-                    "Record dispatch",
+                    RECORD_DISPATCH,
                     url=reverse("wagtail_crm_dispatches:add") + f"?letter={letter.pk}",
                     icon_name="mail",
                 )
@@ -420,8 +421,8 @@ class DispatchLetterPanel(Panel):
 class DispatchCreateView(CreateView):
     """Record a dispatch for the letter named by ?letter= in the URL."""
 
-    page_title = "Record dispatch"
-    submit_button_label = "Record dispatch"
+    page_title = RECORD_DISPATCH
+    submit_button_label = RECORD_DISPATCH
     success_message = "Recorded %(object)s."
 
     # get and post run after the permission check in dispatch.
