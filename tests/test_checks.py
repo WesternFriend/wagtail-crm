@@ -243,6 +243,8 @@ def test_payment_list_finds_checks_by_number_and_source(editor, avery):
     assert f'href="{CHECK_URL}"' in content
     assert f'action="{CHECK_URL}"' in editor.get(CHECK_URL).content.decode()
     assert "Record check" in content
+    assert "Transaction ID or check number" in content
+    assert "<td>1001</td>" in content.replace(" ", "").replace("\n", "")
     assert "Import PayPal CSV" in content
 
 

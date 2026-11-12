@@ -386,6 +386,7 @@ class PaymentViewSet(ModelViewSet):
     list_display = (
         "occurred_at",
         "source",
+        Column("transaction_id", label="Transaction ID or check number"),
         "name",
         "email",
         "donor",
@@ -548,7 +549,9 @@ class ReconciliationPanel(Panel):
                 checks=reconciliation.check_totals(),
                 check_rows=[
                     (reverse("wagtail_crm_payments:edit", args=[p.pk]), p)
-                    for p in reconciliation.payments.checks().order_by("occurred_at")
+                    for p in reconciliation.payments.checks()
+                    .select_related("donor")
+                    .order_by("occurred_at")
                 ],
                 # Listed here: the payment list has no UTC period filter.
                 blockers=[
