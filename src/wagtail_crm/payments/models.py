@@ -1,4 +1,4 @@
-"""Payments imported from a processor's activity export."""
+"""Payments imported from PayPal's activity export or entered as mailed checks."""
 
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
@@ -12,7 +12,8 @@ from wagtail_crm.contacts.models import Contact
 
 # PayPal event codes T11xx are refunds and reversals; the importer takes them
 # only as debits. A refund names its original payment in reference_transaction_id;
-# the link is looked up, not stored, so import order does not matter.
+# the link is looked up, not stored, so import order does not matter. A refund
+# matches only a payment of its own source: a check number may equal a PayPal ID.
 REFUND_EVENT_CODE = "T11"
 CENT = Decimal("0.01")
 IS_REFUND = models.Q(event_code__startswith=REFUND_EVENT_CODE)
@@ -21,15 +22,22 @@ REFUND_NOT_LINKED = (
 )
 
 
-def refunds_of(transaction_id):
-    """Refunds of a payment; an OuterRef gives a correlated subquery."""
-    return Payment.objects.filter(IS_REFUND, reference_transaction_id=transaction_id)
+class Source(models.TextChoices):
+    PAYPAL = "paypal", "PayPal"
+    CHECK = "check", "Check"
 
 
-def refunded_total(transaction_id):
+def refunds_of(transaction_id, source):
+    """Refunds of a payment; OuterRefs give a correlated subquery."""
+    return Payment.objects.filter(
+        IS_REFUND, source=source, reference_transaction_id=transaction_id
+    )
+
+
+def refunded_total(transaction_id, source):
     """Sum of refund gross (negative) for a payment, or None if none."""
     return (
-        refunds_of(transaction_id)
+        refunds_of(transaction_id, source)
         .order_by()
         .values("reference_transaction_id")
         .annotate(total=models.Sum("gross"))
@@ -48,7 +56,8 @@ class PaymentQuerySet(models.QuerySet):
     def unmatched_refunds(self):
         """Refunds whose original payment has not been imported."""
         originals = Payment.objects.filter(
-            transaction_id=models.OuterRef("reference_transaction_id")
+            source=models.OuterRef("source"),
+            transaction_id=models.OuterRef("reference_transaction_id"),
         )
         return self.refunds().exclude(models.Exists(originals))
 
@@ -56,7 +65,9 @@ class PaymentQuerySet(models.QuerySet):
         """Annotate `refunded`: the summed refund gross, or None if none."""
         return self.annotate(
             refunded=models.Subquery(
-                refunded_total(models.OuterRef("transaction_id")),
+                refunded_total(
+                    models.OuterRef("transaction_id"), models.OuterRef("source")
+                ),
                 output_field=models.DecimalField(max_digits=12, decimal_places=2),
             )
         )
@@ -64,6 +75,12 @@ class PaymentQuerySet(models.QuerySet):
     def in_period(self, start, end):
         """Rows dated within a reconciliation period (UTC, end exclusive)."""
         return self.filter(occurred_at__gte=start, occurred_at__lt=end)
+
+    def paypal(self):
+        return self.filter(source=Source.PAYPAL)
+
+    def checks(self):
+        return self.filter(source=Source.CHECK)
 
     def totals(self):
         """Received-payment and refund totals, with PayPal's signs."""
@@ -85,10 +102,13 @@ class PaymentQuerySet(models.QuerySet):
 
 
 class Payment(models.Model):
-    # Imported source facts are not editable through any form.
-    transaction_id = models.CharField(
-        "transaction ID", max_length=64, unique=True, editable=False
+    # Source facts are not editable through the model form; staff enter a
+    # check's through CheckForm's own fields.
+    source = models.CharField(
+        max_length=8, choices=Source, default=Source.PAYPAL, editable=False
     )
+    # A PayPal Transaction ID, or a check's number.
+    transaction_id = models.CharField("transaction ID", max_length=64, editable=False)
     occurred_at = models.DateTimeField("date", editable=False)
     name = models.CharField(max_length=255, blank=True, editable=False)
     email = models.EmailField(blank=True, editable=False)
@@ -120,7 +140,7 @@ class Payment(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="The part of the gross amount that is a gift. "
+        help_text="The part of the amount received that is a gift. "
         "Enter 0 if none of it is.",
     )
 
@@ -130,6 +150,12 @@ class Payment(models.Model):
         ordering = ["-occurred_at", "-pk"]
         # clean() gives staff the field errors; these hold on every write.
         constraints = [
+            # Banks print overlapping check numbers, so only PayPal IDs are unique.
+            models.UniqueConstraint(
+                fields=["transaction_id"],
+                condition=models.Q(source=Source.PAYPAL),
+                name="payment_paypal_transaction_id_unique",
+            ),
             models.CheckConstraint(
                 condition=~IS_REFUND
                 | models.Q(donor__isnull=True, charitable_amount__isnull=True),
@@ -144,12 +170,18 @@ class Payment(models.Model):
                 ),
                 name="payment_charitable_amount_within_gross",
                 violation_error_message="The charitable amount must be from 0 "
-                "to the gross amount.",
+                "to the amount received.",
             ),
         ]
 
     def __str__(self):
+        if self.is_check:
+            return f"Check {self.transaction_id}"
         return f"{self.transaction_id} {self.name}".strip()
+
+    @property
+    def is_check(self):
+        return self.source == Source.CHECK
 
     @property
     def is_refund(self):
@@ -164,7 +196,7 @@ class Payment(models.Model):
 
     @property
     def refunds(self):
-        return refunds_of(self.transaction_id)
+        return refunds_of(self.transaction_id, self.source)
 
     @property
     def refunded_payment(self):
@@ -172,7 +204,7 @@ class Payment(models.Model):
         if not self.is_refund:
             return None
         return Payment.objects.filter(
-            transaction_id=self.reference_transaction_id
+            source=self.source, transaction_id=self.reference_transaction_id
         ).first()
 
     @property
@@ -213,7 +245,7 @@ class Payment(models.Model):
         elif amount is not None and self.gross is not None and amount > self.gross:
             raise ValidationError(
                 {
-                    "charitable_amount": "Enter no more than the gross amount, "
+                    "charitable_amount": "Enter no more than the amount received, "
                     f"{self.gross}."
                 }
             )
@@ -286,6 +318,13 @@ class Reconciliation(models.Model):
     def payments(self):
         return Payment.objects.in_period(*self.period_range)
 
+    def check_totals(self):
+        """Checks are not in PayPal's report; staff see them listed apart."""
+        totals = self.payments.checks().aggregate(
+            count=models.Count("pk"), gross=models.Sum("gross")
+        )
+        return {**totals, "gross": (totals["gross"] or Decimal(0)).quantize(CENT)}
+
     def paypal_totals(self):
         return {
             "count": self.paypal_count,
@@ -296,7 +335,11 @@ class Reconciliation(models.Model):
         }
 
     def blockers(self):
-        """What must be resolved before staff can accept the period."""
+        """What must be resolved before staff can accept the period.
+
+        Checks are entered with a donor and charitable amount, so in practice
+        only PayPal rows block.
+        """
         payments = self.payments
         return {
             "payments without a charitable amount": (

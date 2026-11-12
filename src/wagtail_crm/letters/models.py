@@ -189,7 +189,11 @@ def letter_values(donor, reconciliation, corrects=None, issued_at=None):
     lines = [
         {
             "date": payment.occurred_at.astimezone(UTC).date().isoformat(),
-            "transaction_id": payment.transaction_id,
+            "transaction_id": (
+                f"Check {payment.transaction_id}"
+                if payment.is_check
+                else payment.transaction_id
+            ),
             "gross": str(payment.gross),
             "amount": str(payment.adjusted_charitable_amount),
             "goods_or_services": str(payment.non_charitable_amount),

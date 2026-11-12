@@ -16,6 +16,14 @@
         {% endfor %}
     </tbody>
 </table>
+<p>Mailed checks in this period, not in PayPal's report: {{ checks.count }}, gross {{ checks.gross }}.</p>
+{% if check_rows %}
+    <ul>
+        {% for url, payment in check_rows %}
+            <li><a href="{{ url }}">{{ payment.occurred_at|date:"M j Y" }} {{ payment }} {{ payment.donor }} {{ payment.gross }}</a></li>
+        {% endfor %}
+    </ul>
+{% endif %}
 {% for label, payments in blockers %}
     {% if payments %}
         <p>{{ label|capfirst }} to resolve before accepting ({{ payments|length }}):</p>

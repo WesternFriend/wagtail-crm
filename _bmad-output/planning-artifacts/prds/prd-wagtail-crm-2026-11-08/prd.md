@@ -25,7 +25,7 @@ Established standards should guide future interoperability when an actual import
 
 ## First operational outcome
 
-The first useful release is described in the [product brief](product-brief.md). The reporting period, deadline, volumes, covered accounts, offline gifts and delivery practice are still unknown; see [Evidence and decisions still needed](#evidence-and-decisions-still-needed).
+The first useful release is described in the [product brief](product-brief.md). The reporting period, deadline, volumes, covered accounts and delivery practice are still unknown; mailed checks are in scope (#25); see [Evidence and decisions still needed](#evidence-and-decisions-still-needed).
 
 ## Users and proposed authority
 
@@ -47,7 +47,7 @@ Each requirement names the 0.1.0 slice issue that delivers it, or is marked defe
 - **FR-20 (#5):** The preview lists each row that will not be imported, with the reason, before staff confirm. A failed import leaves nothing imported. Recovery from an interrupted import is deferred.
 - **FR-02 (#6):** Staff create or choose the donor contact while linking a payment. Bulk contact import is deferred until volume shows a need.
 - **FR-03:** Deferred. Tracking source coverage by account and date range.
-- **FR-04:** Deferred. Mailed or other offline gifts, pending the coverage decision in roadmap step 0.
+- **FR-04:** Staff record mailed checks by hand, and they count on letters like PayPal payments (#25). Other offline gifts stay deferred.
 
 ### Donor and financial review
 
@@ -107,7 +107,7 @@ The pilot question and the asynchronous, synthetic-data method are in the [produ
 
 ## Evidence and decisions still needed
 
-Proposed discovery coordinator: Brylie; not yet stakeholder-confirmed. Obtain a historical letter, representative redacted PayPal export, contact/subscription records, and mailed-gift examples if covered. Redaction must retain matching relationships and financial edge cases. Observe the Editor's current workflow and representative tasks; bookkeeper supplies authoritative records and expected results.
+Proposed discovery coordinator: Brylie; not yet stakeholder-confirmed. Obtain a historical letter, representative redacted PayPal export, contact/subscription records, and mailed-check examples. Redaction must retain matching relationships and financial edge cases. Observe the Editor's current workflow and representative tasks; bookkeeper supplies authoritative records and expected results.
 
 Confirm period/date basis/timezone, coverage, volume/deadline, historical subscription valuations, refund/cross-year corrections, donor attribution edge cases, wording/signatory/branding, delivery preferences, exclusion and closure policy, approval authority, retention/deletion, and support/recovery ownership. Each operational prerequisite needs a named owner and next action before readiness can be declared. Hosting and VPN choices remain open; DigitalOcean App Platform and Spaces are candidates, not validated. The Western Friend website's AGPL source is a reference for conventions only; assess rights before reusing any of it.
 

@@ -15,6 +15,7 @@ Run the criteria on synthetic data. Amounts are synthetic USD fixture values, no
 | AC-06 | #5 | Upload a CSV, upload the same file again, then upload a file that overlaps it | The repeat upload is rejected. The overlapping file adds only the new transactions, and existing donor links and charitable amounts are unchanged. |
 | AC-07 | #5 | Upload a file containing a malformed amount, an unsupported status and a EUR row | The preview lists each skipped row with its reason. Nothing is dropped silently, and no USD value is invented. |
 | AC-08 | #7 | Open a payment that has a linked refund; separately, find a refund whose payment was not imported | The payment shows the refund and the adjusted charitable amount for staff to review. The unmatched refund is listed as needing review. |
+| AC-09 | #25 | Record a mailed check for a donor with its date received, check number, amount and charitable amount, then preview the donor's letter and open the period's reconciliation | The check is listed with the payments and appears on the letter like a PayPal payment. The reconciliation compares PayPal rows only and lists the period's checks separately, so the check is not shown as a difference. |
 | AC-10 | #8 | Choose a period (whole UTC days), enter PayPal's totals for the same UTC range, and accept the reconciliation | Count, gross, fees, net and refunds appear next to the entered totals, and any difference is shown. Staff can accept only when every payment in the period has a charitable amount and no refund is unmatched. Letters cannot be issued until staff accept; History shows who accepted and when. |
 | AC-12 | #9 | Issue a donor's letter, then edit the contact's address and one payment | The issued PDF and its stored values do not change. |
 | AC-13 | #9 | Issue a correction for an issued letter | A new letter is linked to the earlier one, and the earlier PDF is still available. |
@@ -28,7 +29,7 @@ Run the criteria on synthetic data. Amounts are synthetic USD fixture values, no
 Each item returns only when a real case shows it is needed.
 
 - AC-04 (approved historical split policies): staff enter the charitable amount directly in #6.
-- AC-09 (offline/mailed-gift coverage): waits on the coverage decision in roadmap step 0.
+- Offline gifts other than mailed checks, and bounced or returned checks, bank deposit reconciliation, scanned check images and batch check entry (#25 covers single mailed checks).
 - AC-11 (batch approval and version invalidation): 0.1.0 issues letters one at a time.
 - Reopening an accepted reconciliation after later imports, and recovering from an interrupted import or issuance: Django transactions and ordinary Wagtail behavior are accepted for now.
 - Refund splits beyond reducing the contribution, the portable-export half of the earlier AC-16, delivery-exception closure authority, and the evidence contract, gate-dependency matrix and reconciliation bridge from the earlier draft. Git history keeps that draft.

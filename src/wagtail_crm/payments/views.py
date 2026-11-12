@@ -1,14 +1,16 @@
 import hashlib
-from datetime import timedelta
+from datetime import UTC, datetime, time, timedelta
+from decimal import Decimal
 
 import django_filters
 from django import forms
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.formats import date_format
+from django.utils.functional import cached_property
 from django.utils.html import format_html, format_html_join
 from django.utils.timezone import localtime
 from django.views.generic import FormView
@@ -23,16 +25,24 @@ from wagtail.admin.panels import (
 )
 from wagtail.admin.ui.tables import Column
 from wagtail.admin.views.generic.base import WagtailAdminTemplateMixin
-from wagtail.admin.views.generic.models import EditView, IndexView, InspectView
+from wagtail.admin.views.generic.models import (
+    CreateView,
+    EditView,
+    IndexView,
+    InspectView,
+)
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
 from wagtail.admin.viewsets.model import ModelViewSet
+from wagtail.admin.widgets import AdminDateInput, HeaderButton
 from wagtail.log_actions import log
 
-from .models import REFUND_NOT_LINKED, Payment, Reconciliation
+from .models import REFUND_NOT_LINKED, Payment, Reconciliation, Source
 from .paypal import ActivityFileError, read_activity_csv
 
 # Shown in History as "Accepted reconciliation".
 ACCEPT_RECONCILIATION = "wagtail_crm_payments.accept_reconciliation"
+
+RECORD_CHECK = "Record check"
 
 # The uploaded file waits here between preview and confirm, and is removed on
 # confirm, cancel, a new upload, or when the session expires.
@@ -150,7 +160,7 @@ class PaymentFilterSet(WagtailFilterSet):
 
     class Meta:
         model = Payment
-        fields = ["type"]
+        fields = ["source", "type"]
 
     def filter_unmatched_refund(self, queryset, name, value):
         if value is None:
@@ -171,6 +181,111 @@ class PaymentIndexView(IndexView):
 
     def get_base_queryset(self):
         return super().get_base_queryset().with_refunded()
+
+    @cached_property
+    def header_buttons(self):
+        buttons = super().header_buttons
+        if self.add_url:  # The same add permission as importing.
+            buttons.append(
+                HeaderButton(
+                    RECORD_CHECK,
+                    url=reverse("wagtail_crm_payments:add_check"),
+                    icon_name="plus",
+                )
+            )
+        return buttons
+
+
+class CheckForm(WagtailAdminModelForm):
+    """A mailed check. Its facts are form fields, not model fields, because
+    they are editable=False: PayPal's imported facts stay read-only."""
+
+    received = forms.DateField(label="Date received", widget=AdminDateInput)
+    check_number = forms.CharField(label="Check number", max_length=64)
+    amount = forms.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01")
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Entered together, so a check never waits for its donor or amount.
+        self.fields["donor"].required = True
+        self.fields["charitable_amount"].required = True
+        check = self.instance
+        if check.pk:
+            self.initial.setdefault(
+                "received", check.occurred_at.astimezone(UTC).date()
+            )
+            self.initial.setdefault("check_number", check.transaction_id)
+            self.initial.setdefault("amount", check.gross)
+
+    def clean(self):
+        cleaned = super().clean()
+        # Set before _post_clean, so Payment.clean() checks the charitable
+        # amount against this gross.
+        check = self.instance
+        check.source = Source.CHECK
+        check.type = "Check"
+        check.status = "Completed"
+        check.currency = "USD"
+        check.event_code = ""  # Never T11xx, so never a refund.
+        if received := cleaned.get("received"):
+            # Noon UTC is the same UTC day for periods and shows the same
+            # date in time zones from UTC-11 to UTC+11.
+            check.occurred_at = datetime.combine(received, time(12), tzinfo=UTC)
+        if number := cleaned.get("check_number"):
+            check.transaction_id = number
+        if (amount := cleaned.get("amount")) is not None:
+            check.gross = check.net = amount
+            check.fee = Decimal("0.00")
+        return cleaned
+
+
+CHECK_PANEL = ObjectList(
+    [
+        FieldRowPanel(
+            [FieldPanel("received"), FieldPanel("check_number"), FieldPanel("amount")]
+        ),
+        FieldPanel("donor"),
+        FieldPanel("charitable_amount"),
+    ],
+    base_form_class=CheckForm,
+).bind_to_model(Payment)
+
+
+class CheckCreateView(CreateView):
+    page_title = RECORD_CHECK
+    submit_button_label = RECORD_CHECK
+    success_message = "Recorded %(object)s."
+
+    def get_page_subtitle(self):
+        return "Mailed check"
+
+    def get_add_url(self):
+        # The form posts here, not to the viewset's add view (the import).
+        return reverse("wagtail_crm_payments:add_check")
+
+    def get_success_buttons(self):
+        return []
+
+
+class PaymentEditView(EditView):
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        if self.panel is CHECK_PANEL:
+            self.form_class = CHECK_PANEL.get_form_class()
+
+    def get_panel(self):
+        # Wagtail picks the panel in setup(), before its permission check and
+        # before loading the object. Read only the source here, so a missing
+        # payment is still refused, not reported as missing.
+        pk = str(self.kwargs.get("pk", ""))
+        source = (
+            Payment.objects.filter(pk=pk).values_list("source", flat=True).first()
+            if pk.isdecimal()
+            else None
+        )
+        return CHECK_PANEL if source == Source.CHECK else super().get_panel()
 
 
 def refunds_html(payment, action):
@@ -223,7 +338,37 @@ class RefundsPanel(Panel):
             return context
 
 
+# PayPal facts a mailed check doesn't have.
+NOT_ON_CHECKS = {
+    "name",
+    "email",
+    "event_code",
+    "status",
+    "currency",
+    "fee",
+    "net",
+    "reference_transaction_id",
+    "refunds",
+    "adjusted_charitable_amount",
+}
+
+
 class PaymentInspectView(InspectView):
+    def get_fields_context(self):
+        # Fields are listed before the object loads; filter them here.
+        if self.object.is_check:
+            return [
+                self.get_context_for_field(name)
+                for name in self.get_fields()
+                if name not in NOT_ON_CHECKS
+            ]
+        return super().get_fields_context()
+
+    def get_field_label(self, field_name, field):
+        if field_name == "transaction_id" and self.object.is_check:
+            return "Check number"
+        return super().get_field_label(field_name, field)
+
     def get_refunds_display_value(self):
         return refunds_html(self.object, "inspect")
 
@@ -236,9 +381,11 @@ class PaymentViewSet(ModelViewSet):
     url_prefix = "crm/payments"
     url_namespace = "wagtail_crm_payments"
     index_view_class = PaymentIndexView
+    edit_view_class = PaymentEditView
     index_results_template_name = "wagtail_crm_payments/index_results.html"
     list_display = (
         "occurred_at",
+        "source",
         "name",
         "email",
         "donor",
@@ -253,6 +400,7 @@ class PaymentViewSet(ModelViewSet):
     search_fields = ("name", "email", "transaction_id")
     inspect_view_enabled = True
     inspect_view_fields = (
+        "source",
         "occurred_at",
         "name",
         "email",
@@ -308,6 +456,21 @@ class PaymentViewSet(ModelViewSet):
     def add_view(self):
         return self.construct_view(PaypalImportView)
 
+    @property
+    def add_check_view(self):
+        return self.construct_view(
+            CheckCreateView,
+            **self.get_add_view_kwargs(
+                panel=CHECK_PANEL, form_class=CHECK_PANEL.get_form_class()
+            ),
+        )
+
+    def get_urlpatterns(self):
+        return [
+            *super().get_urlpatterns(),
+            path("checks/new/", self.add_check_view, name="add_check"),
+        ]
+
 
 class ReconciliationForm(WagtailAdminModelForm):
     accept = forms.BooleanField(
@@ -357,7 +520,7 @@ COMPARED = (
 
 def comparison(reconciliation):
     """CRM, PayPal and difference for each total."""
-    crm = reconciliation.payments.totals()
+    crm = reconciliation.payments.paypal().totals()
     paypal = reconciliation.paypal_totals()
     rows = []
     for key, label in COMPARED:
@@ -382,6 +545,11 @@ class ReconciliationPanel(Panel):
                 first=start,
                 last=end - timedelta(minutes=1),
                 rows=comparison(reconciliation)[1],
+                checks=reconciliation.check_totals(),
+                check_rows=[
+                    (reverse("wagtail_crm_payments:edit", args=[p.pk]), p)
+                    for p in reconciliation.payments.checks().order_by("occurred_at")
+                ],
                 # Listed here: the payment list has no UTC period filter.
                 blockers=[
                     (
@@ -419,6 +587,10 @@ class ReconciliationEditView(EditView):
                     "paypal": {
                         key: str(value)
                         for key, value in instance.paypal_totals().items()
+                    },
+                    "checks": {
+                        key: str(value)
+                        for key, value in instance.check_totals().items()
                     },
                 },
             )

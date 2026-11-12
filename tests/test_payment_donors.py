@@ -80,7 +80,7 @@ def test_non_charitable_remainder_is_gross_minus_charitable(charitable, remainde
 @pytest.mark.parametrize(
     ("amount", "message"),
     [
-        ("100.01", "Enter no more than the gross amount, 100.00."),
+        ("100.01", "Enter no more than the amount received, 100.00."),
         ("-1", "Enter 0 or more."),
     ],
 )
