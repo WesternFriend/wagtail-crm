@@ -91,7 +91,8 @@ def read_activity_csv(text: str) -> ActivityFile:
         msg = f"The CSV could not be read: {error}"
         raise ActivityFileError(msg) from error
 
-    existing = set(Payment.objects.values_list("transaction_id", flat=True))
+    # Check numbers may equal PayPal IDs; only PayPal rows count as imported.
+    existing = set(Payment.objects.paypal().values_list("transaction_id", flat=True))
     result = ActivityFile()
     first_seen: dict[str, int] = {}
     for number, cells in rows:

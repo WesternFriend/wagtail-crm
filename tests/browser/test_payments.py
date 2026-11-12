@@ -306,3 +306,57 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
         # Preview saved nothing: only the original and its correction exist.
         assert Letter.objects.count() == 2
         assert Letter.objects.filter(corrects__isnull=False).count() == 1
+
+    def test_record_a_check_and_see_it_on_the_letter(self):
+        Contact.objects.create(
+            given_name="Avery", family_name="Example", postal_address="1 Example Street"
+        )
+        Reconciliation.objects.create(
+            start="2026-01-01",
+            end="2026-12-31",
+            paypal_count=0,
+            paypal_gross="0",
+            paypal_fees="0",
+            paypal_net="0",
+            paypal_refunds="0",
+            accepted_at="2027-01-05T12:00:00Z",
+        )
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                page = self.sign_in(browser)
+                page.get_by_role("link", name="Payments").click()
+                page.get_by_role("link", name="Record check").click()
+                page.get_by_role("textbox", name="Date received").fill("2026-03-02")
+                page.get_by_role("textbox", name="Check number").fill("1001")
+                page.get_by_role("spinbutton", name=re.compile(r"^Amount")).fill(
+                    "75.00"
+                )
+                page.get_by_role("button", name="Choose a contact").click()
+                modal = page.get_by_role("dialog")
+                modal.get_by_role("link", name="Avery Example").click()
+                expect(modal).to_be_hidden()
+                page.get_by_role("spinbutton", name="Charitable amount").fill("75.00")
+                page.get_by_role("button", name="Record check").click()
+                expect(page.get_by_text("Recorded Check 1001.")).to_be_visible()
+
+                page.get_by_role("link", name="Letters").click()
+                page.get_by_role("link", name="Issue letter").click()
+                page.get_by_role("button", name="Choose a contact").click()
+                modal = page.get_by_role("dialog")
+                modal.get_by_role("link", name="Avery Example").click()
+                expect(modal).to_be_hidden()
+                page.get_by_role("combobox", name="Period").select_option(
+                    label="2026-01-01 to 2026-12-31"
+                )
+                with page.context.expect_event(
+                    "response",
+                    lambda r: r.headers.get("content-type") == "application/pdf",
+                ) as preview:
+                    page.get_by_role("button", name="Preview PDF").click()
+                assert preview.value.ok  # The PDF text is checked in test_checks.
+                page.get_by_role("button", name="Issue letter").click()
+                expect(page.get_by_text("Check 1001: 75.00 charitable")).to_be_visible()
+            finally:
+                browser.close()
+        assert Payment.objects.checks().count() == 1

@@ -8,11 +8,11 @@ The goal of the first release is one completed, reconciled acknowledgment cycle 
 
 The repository includes a runnable `devsite` host with SQLite and the `wagtail_crm.contacts` domain app in one reusable distribution. It has a minimal person/organization Contact model, Wagtail model views, a synthetic seed command, permission and CSRF tests, and a real-browser smoke suite. See [Development and testing](development.md) for commands and the manual UI checklist.
 
-The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) and lets staff link each payment to a donor with its charitable amount (#6), shows refunds next to the payments they refund (#7), reconciles a period's totals against PayPal's (#8), issues a donor's acknowledgment letter for an accepted reconciliation (#9), and records how each letter was sent (#10). Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
+The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5), records mailed checks (#25), and lets staff link each payment to a donor with its charitable amount (#6), shows refunds next to the payments they refund (#7), reconciles a period's totals against PayPal's (#8), issues a donor's acknowledgment letter for an accepted reconciliation (#9), and records how each letter was sent (#10). Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
 
 ## 0. Confirm the first reporting cycle
 
-Review a sanitized PayPal activity export and an approved historical letter. Confirm the period, reporting timezone/date basis, covered source accounts, historical patron mappings, refund treatment, and delivery workflow. Determine whether mailed gifts or other channels must be included.
+Review a sanitized PayPal activity export and an approved historical letter. Confirm the period, reporting timezone/date basis, covered source accounts, historical patron mappings, refund treatment, and delivery workflow. Mailed checks are included (decided 2026-11-11, #25); other offline channels are not.
 
 Record decisions in the [PRD](../_bmad-output/planning-artifacts/prds/prd-wagtail-crm-2026-11-08/prd.md). Raw donor files remain private and must not be attached to public repository discussions. Synthetic fixtures should reproduce their structure and edge cases.
 
@@ -20,7 +20,7 @@ Exit evidence: a documented import schema, synthetic sample dataset, approved al
 
 ## 1. Import and inspect payments securely
 
-Staff upload a PayPal Activity Download CSV, preview the rows to import and the rows skipped with a reason, and confirm; all new rows are saved in one transaction or none (#5). Transaction ID is the identity, so repeated and overlapping files add only new payments. Imported values are read-only in a Wagtail payment list.
+Staff upload a PayPal Activity Download CSV, preview the rows to import and the rows skipped with a reason, and confirm; all new rows are saved in one transaction or none (#5). Transaction ID is the identity, so repeated and overlapping files add only new payments. Imported values are read-only in a Wagtail payment list. Staff record mailed checks by hand in the same list (#25).
 
 Exit evidence: repeat and concurrent imports cannot duplicate payments; skipped rows are explained in the preview; unauthorized users cannot see or import payments.
 
