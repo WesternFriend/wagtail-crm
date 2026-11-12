@@ -51,11 +51,17 @@ def letter_storage(monkeypatch, tmp_path):
 
 @pytest.fixture
 def letter_editor(staff_user):
-    """A CRM Editor's letter permissions, as seeded: issue and view."""
+    """A CRM Editor's letter permissions, as seeded: issue, view, dispatch."""
     staff_user.user_permissions.add(
         *Permission.objects.filter(
             content_type__app_label="wagtail_crm_letters",
-            codename__in=["add_letter", "view_letter"],
+            codename__in=[
+                "add_letter",
+                "view_letter",
+                "add_dispatch",
+                "change_dispatch",
+                "view_dispatch",
+            ],
         )
     )
     return staff_user

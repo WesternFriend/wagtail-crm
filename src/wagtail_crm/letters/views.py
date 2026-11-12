@@ -1,4 +1,6 @@
+import django_filters
 from django import forms
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -9,21 +11,41 @@ from django.utils.cache import patch_cache_control
 from django.utils.functional import cached_property
 from django.utils.html import format_html, format_html_join
 from django.views.generic import View
+from wagtail.admin.filters import WagtailFilterSet
 from wagtail.admin.forms import WagtailAdminModelForm
 from wagtail.admin.panels import FieldPanel, ObjectList, Panel
 from wagtail.admin.ui.tables import Column
-from wagtail.admin.views.generic.models import CreateView, IndexView, InspectView
+from wagtail.admin.views.generic.models import (
+    CreateView,
+    EditView,
+    IndexView,
+    InspectView,
+)
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
 from wagtail.admin.viewsets.model import ModelViewSet
 from wagtail.admin.widgets import HeaderButton
 from wagtail.log_actions import log
+from wagtail.permissions import policy_registry
 
-from .models import Letter, letter_values, needing_charitable_amount
+from .models import (
+    Dispatch,
+    DispatchStatus,
+    Letter,
+    letter_values,
+    needing_charitable_amount,
+)
 from .pdf import render_pdf
 
 ISSUE = "Issue letter"
+RECORD_DISPATCH = "Record dispatch"
 # Shown in History as "Issued letter".
 ISSUE_LETTER = "wagtail_crm_letters.issue"
+
+
+def require_letter(pk):
+    """A link that names a letter must name an existing one."""
+    if pk and not (pk.isdecimal() and Letter.objects.filter(pk=pk).exists()):
+        raise Http404
 
 
 def private(response):
@@ -116,8 +138,23 @@ def corrects_label(letter):
     return f"Letter dated {letter.corrects.date}" if letter.corrects else ""
 
 
+class LetterFilterSet(WagtailFilterSet):
+    dispatch = django_filters.ChoiceFilter(
+        label="Dispatch",
+        choices=DispatchStatus.choices,
+        field_name="dispatch_status",
+    )
+
+    class Meta:
+        model = Letter
+        fields: list[str] = []
+
+
 class LetterIndexView(IndexView):
     add_item_label = ISSUE
+
+    def get_base_queryset(self):
+        return super().get_base_queryset().with_dispatch_status()
 
 
 class LetterCreateView(CreateView):
@@ -128,18 +165,12 @@ class LetterCreateView(CreateView):
 
     # get and post run after the permission check in dispatch.
     def get(self, request, *args, **kwargs):
-        self.require_letter(request.GET.get("corrects"))
+        require_letter(request.GET.get("corrects"))
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        self.require_letter(request.POST.get("corrects"))
+        require_letter(request.POST.get("corrects"))
         return super().post(request, *args, **kwargs)
-
-    @staticmethod
-    def require_letter(pk):
-        """A correction must name an existing letter."""
-        if pk and not (pk.isdecimal() and Letter.objects.filter(pk=pk).exists()):
-            raise Http404
 
     def get_initial(self):
         return {**super().get_initial(), "corrects": self.request.GET.get("corrects")}
@@ -192,6 +223,9 @@ class LetterInspectView(InspectView):
     add_url_name = None
     inspect_url_name = None
 
+    def get_object(self, queryset=None):
+        return get_object_or_404(Letter.objects.with_dispatch_status(), pk=self.pk)
+
     @cached_property
     def header_buttons(self):
         letter = self.object
@@ -202,6 +236,15 @@ class LetterInspectView(InspectView):
                 icon_name="doc-full",
             )
         ]
+        dispatches = policy_registry.get_by_type(Dispatch)
+        if dispatches.user_has_permission(self.request.user, "add"):
+            buttons.append(
+                HeaderButton(
+                    RECORD_DISPATCH,
+                    url=reverse("wagtail_crm_dispatches:add") + f"?letter={letter.pk}",
+                    icon_name="mail",
+                )
+            )
         if letter.correction is None and self.permission_policy.user_has_permission(
             self.request.user, "add"
         ):
@@ -235,6 +278,33 @@ class LetterInspectView(InspectView):
                     line["goods_or_services"],
                 )
                 for line in self.object.values["lines"]
+            ),
+        )
+
+    def get_dispatch_records_display_value(self):
+        records = self.object.dispatches.all()
+        if not records:
+            return "No dispatches recorded. Downloading the PDF does not count."
+        can_edit = policy_registry.get_by_type(Dispatch).user_has_permission(
+            self.request.user, "change"
+        )
+        return format_html_join(
+            "",
+            "<div>{}: {} by {}{}{}</div>",
+            (
+                (
+                    record.date.isoformat(),
+                    record.get_outcome_display(),
+                    record.get_channel_display().lower(),
+                    f". {record.note}" if record.note else "",
+                    format_html(
+                        ' <a href="{}">Edit</a>',
+                        reverse("wagtail_crm_dispatches:edit", args=[record.pk]),
+                    )
+                    if can_edit
+                    else "",
+                )
+                for record in records
             ),
         )
 
@@ -284,7 +354,9 @@ class LetterViewSet(ModelViewSet):
         "__str__",
         "issued_at",
         Column("corrects", label="Correction of", accessor=corrects_label),
+        Column("dispatch", label="Dispatch"),
     )
+    filterset_class = LetterFilterSet
     inspect_view_fields = (
         "donor",
         "address",
@@ -294,6 +366,8 @@ class LetterViewSet(ModelViewSet):
         "total",
         "corrects",
         "correction",
+        "dispatch",
+        "dispatch_records",
     )
     edit_handler = ObjectList(
         [
@@ -326,3 +400,96 @@ class LetterViewSet(ModelViewSet):
             *super().get_urlpatterns(),
             path("pdf/<int:pk>/", self.pdf_view, name="pdf"),
         ]
+
+
+def letter_page(letter):
+    return reverse("wagtail_crm_letters:inspect", args=[letter.pk])
+
+
+class DispatchLetterPanel(Panel):
+    """Which letter the dispatch is for; it never moves to another letter."""
+
+    class BoundPanel(Panel.BoundPanel):
+        template_name = "wagtail_crm_letters/dispatch_letter_panel.html"
+
+        def get_context_data(self, parent_context=None):
+            context = super().get_context_data(parent_context)
+            letter = self.instance.letter
+            context.update(letter=letter, letter_url=letter_page(letter))
+            return context
+
+
+class DispatchCreateView(CreateView):
+    """Record a dispatch for the letter named by ?letter= in the URL."""
+
+    page_title = RECORD_DISPATCH
+    submit_button_label = RECORD_DISPATCH
+    success_message = "Recorded %(object)s."
+
+    # get and post run after the permission check in dispatch.
+    def get(self, request, *args, **kwargs):
+        self.require_letter()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self.require_letter()
+        return super().post(request, *args, **kwargs)
+
+    def require_letter(self):
+        # The form shows the letter's donor, so it needs the letter's view
+        # permission as well as add_dispatch.
+        letters = policy_registry.get_by_type(Letter)
+        if not letters.user_has_permission(self.request.user, "view"):
+            raise PermissionDenied
+        pk = self.request.GET.get("letter")
+        if not pk:
+            raise Http404
+        require_letter(pk)
+        self.letter = Letter.objects.get(pk=pk)
+
+    def get_initial_form_instance(self):
+        return Dispatch(letter=self.letter)
+
+    def get_add_url(self):
+        # The form posts back with the letter in the URL, not a form field.
+        return super().get_add_url() + f"?letter={self.letter.pk}"
+
+    def get_success_url(self):
+        return letter_page(self.object.letter)
+
+    def get_success_buttons(self):
+        return []
+
+
+class DispatchEditView(EditView):
+    def get_success_url(self):
+        return letter_page(self.object.letter)
+
+
+class DispatchIndexView(IndexView):
+    # Wagtail lets "add" alone open the list; the list shows donors and notes.
+    any_permission_required = ["change", "view"]
+
+    # Dispatches are recorded from a letter's page.
+    def get_add_url(self):
+        return None
+
+
+class DispatchViewSet(ModelViewSet):
+    model = Dispatch
+    icon = "mail"
+    url_prefix = "crm/dispatches"
+    url_namespace = "wagtail_crm_dispatches"
+    index_view_class = DispatchIndexView
+    add_view_class = DispatchCreateView
+    edit_view_class = DispatchEditView
+    copy_view_enabled = False
+    list_display = ("letter", "date", "channel", "outcome", "note")
+    # No letter field: a dispatch keeps the letter it was recorded for.
+    panels = (
+        DispatchLetterPanel(heading="Letter"),
+        FieldPanel("channel"),
+        FieldPanel("date"),
+        FieldPanel("outcome"),
+        FieldPanel("note"),
+    )

@@ -8,7 +8,7 @@ The goal of the first release is one completed, reconciled acknowledgment cycle 
 
 The repository includes a runnable `devsite` host with SQLite and the `wagtail_crm.contacts` domain app in one reusable distribution. It has a minimal person/organization Contact model, Wagtail model views, a synthetic seed command, permission and CSRF tests, and a real-browser smoke suite. See [Development and testing](development.md) for commands and the manual UI checklist.
 
-The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) and lets staff link each payment to a donor with its charitable amount (#6), shows refunds next to the payments they refund (#7), reconciles a period's totals against PayPal's (#8), and issues a donor's acknowledgment letter for an accepted reconciliation (#9); dispatch records are not implemented yet. Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
+The `wagtail_crm.payments` app imports PayPal activity CSVs with a preview (#5) and lets staff link each payment to a donor with its charitable amount (#6), shows refunds next to the payments they refund (#7), reconciles a period's totals against PayPal's (#8), issues a donor's acknowledgment letter for an accepted reconciliation (#9), and records how each letter was sent (#10). Verify browser checks on a machine or CI runner that permits Chromium execution; test PostgreSQL behavior before relying on financial locking or production deployment.
 
 ## 0. Confirm the first reporting cycle
 
@@ -36,13 +36,13 @@ Staff preview a letter for one donor and an accepted reconciliation's period: th
 
 Exit evidence: the mixed-payment example totals $145, a letter cannot be issued before its period is accepted, issued PDFs are served only to staff with letter permissions, and later edits do not alter issued letters.
 
-## 4. Complete distribution and validate the workflow
+## 4. Record dispatch and validate the workflow
 
-Implement the agreed distribution path. Downloadable PDFs and manifests, plus staff-recorded postal or external email dispatch/failure, are sufficient for the first cycle. The Editor may manually email PDFs through existing tools; exact delivery practice still needs confirmation. Downloading a PDF does not record dispatch. Application email sending is outside the first cycle; a later enhancement would require explicit scope, credentials, retry behavior, and tests that prevent unintended or duplicate sends.
+Staff download an issued letter, send it themselves by post or email, and record each attempt: channel, date, outcome and a note, which a failed attempt requires. Downloading alone does not count as sent, and staff can list letters that are not sent yet or whose sending failed; a letter replaced by a correction is not owed a dispatch (AC-14, #10). The app sends no email: a later enhancement would need explicit scope, credentials, retry behavior and tests that prevent unintended or duplicate sends.
 
-Run the complete workflow with synthetic data and the Editor. Then validate a restricted real-data pilot against the existing financial records and approved letter policy. Document exceptions and resolve discrepancies before final issuance.
+Then the Editor runs the whole cycle on synthetic data (#11), the pilot environment is set up (#13), and a restricted real-data pilot is checked against the existing financial records (#12). Exceptions are documented and resolved before real letters are issued.
 
-Exit evidence: the Editor can complete the reporting and distribution cycle, distinguish generated/issued/dispatched states, and revise a letter without losing history.
+Exit evidence: the Editor completes one cycle from import to recorded dispatch and can tell issued, sent, failed and superseded letters apart.
 
 ## 5. Prepare the separate deployment
 

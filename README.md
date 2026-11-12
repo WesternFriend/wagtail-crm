@@ -6,7 +6,7 @@ Wagtail's staff interface is the application's only UI. The site root redirects 
 
 ## Status
 
-Alpha contact-management foundation; there are no existing installations. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, ordinary Given name/Family name fields, optional email and multiline postal editing, Wagtail activity history, permission-controlled views, a PayPal activity CSV import with preview, donor linking with charitable amounts, refunds linked to their payments, period reconciliation against PayPal totals, and donor acknowledgment letters with corrections. Dispatch records, financial controls and reporting dashboards are still planned. Production authentication hardening and deployment have not been completed.
+Alpha contact-management foundation; there are no existing installations. The reusable app runs inside a local Django/Wagtail host with SQLite, synthetic contacts, ordinary Given name/Family name fields, optional email and multiline postal editing, Wagtail activity history, permission-controlled views, a PayPal activity CSV import with preview, donor linking with charitable amounts, refunds linked to their payments, period reconciliation against PayPal totals, donor acknowledgment letters with corrections, and staff-recorded letter dispatch. Financial controls and reporting dashboards are still planned. Production authentication hardening and deployment have not been completed.
 
 ## Run locally
 

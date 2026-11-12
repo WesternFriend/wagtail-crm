@@ -41,7 +41,13 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
             *Permission.objects.filter(content_type__app_label="wagtail_crm_contacts"),
             *Permission.objects.filter(
                 content_type__app_label="wagtail_crm_letters",
-                codename__in=["add_letter", "view_letter"],
+                codename__in=[
+                    "add_letter",
+                    "view_letter",
+                    "add_dispatch",
+                    "change_dispatch",
+                    "view_dispatch",
+                ],
             ),
         )
 
@@ -268,6 +274,28 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
                 with page.expect_download() as download:
                     page.get_by_role("link", name="Download PDF").click()
                 assert download.value.suggested_filename.endswith(".pdf")
+
+                page.get_by_role("link", name="Record dispatch").click()
+                page.get_by_role("combobox", name="Channel").select_option(
+                    label="Email"
+                )
+                page.get_by_role("combobox", name="Outcome").select_option(
+                    label="Failed"
+                )
+                page.get_by_role("textbox", name="Note").fill("Address bounced")
+                page.get_by_role("button", name="Record dispatch").click()
+                expect(
+                    page.get_by_text("Failed by email. Address bounced")
+                ).to_be_visible()
+                page.get_by_role("link", name="Letters").click()
+                page.get_by_role("row").filter(has_text="Sending failed").get_by_role(
+                    "link"
+                ).first.click()
+                page.get_by_role("link", name="Record dispatch").click()
+                page.get_by_role("combobox", name="Channel").select_option(label="Post")
+                page.get_by_role("combobox", name="Outcome").select_option(label="Sent")
+                page.get_by_role("button", name="Record dispatch").click()
+                expect(page.get_by_text("Sent by post")).to_be_visible()
 
                 page.get_by_role("link", name="Issue correction").click()
                 expect(page.get_by_text("This letter corrects")).to_be_visible()
