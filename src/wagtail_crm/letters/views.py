@@ -1,5 +1,6 @@
 import django_filters
 from django import forms
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -435,6 +436,11 @@ class DispatchCreateView(CreateView):
         return super().post(request, *args, **kwargs)
 
     def require_letter(self):
+        # The form shows the letter's donor, so it needs the letter's view
+        # permission as well as add_dispatch.
+        letters = policy_registry.get_by_type(Letter)
+        if not letters.user_has_permission(self.request.user, "view"):
+            raise PermissionDenied
         pk = self.request.GET.get("letter")
         if not pk:
             raise Http404
@@ -461,6 +467,9 @@ class DispatchEditView(EditView):
 
 
 class DispatchIndexView(IndexView):
+    # Wagtail lets "add" alone open the list; the list shows donors and notes.
+    any_permission_required = ["change", "view"]
+
     # Dispatches are recorded from a letter's page.
     def get_add_url(self):
         return None

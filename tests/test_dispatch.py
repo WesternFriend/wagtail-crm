@@ -199,3 +199,24 @@ def test_users_without_dispatch_permissions_are_denied(editor, staff_user, lette
     assert response.status_code in (302, 403)
     dispatch.refresh_from_db()
     assert (Dispatch.objects.count(), dispatch.channel) == (1, "post")
+
+
+def test_adding_dispatches_alone_shows_no_letters_or_dispatches(staff_user, letter):
+    Dispatch.objects.create(letter=letter, channel="post", outcome="sent")
+    staff_user.user_permissions.set(
+        Permission.objects.filter(codename__in=["access_admin", "add_dispatch"])
+    )
+    client = Client()
+    client.force_login(get_user_model().objects.get(pk=staff_user.pk))
+    for url in (
+        reverse("wagtail_crm_dispatches:index"),
+        f"{ADD_URL}?letter={letter.pk}",
+    ):
+        response = client.get(url)
+        assert response.status_code in (302, 403), url
+        assert b"Avery" not in response.content
+    response = client.post(
+        f"{ADD_URL}?letter={letter.pk}", {"channel": "post", "outcome": "sent"}
+    )
+    assert response.status_code in (302, 403)
+    assert Dispatch.objects.count() == 1
