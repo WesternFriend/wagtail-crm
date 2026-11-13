@@ -10,11 +10,12 @@ from django.utils import timezone
 from django.utils.cache import patch_cache_control
 from django.utils.functional import cached_property
 from django.utils.html import format_html, format_html_join
-from django.views.generic import View
+from django.views.generic import TemplateView, View
 from wagtail.admin.filters import WagtailFilterSet
 from wagtail.admin.forms import WagtailAdminModelForm
 from wagtail.admin.panels import FieldPanel, ObjectList, Panel
 from wagtail.admin.ui.tables import Column
+from wagtail.admin.views.generic.base import WagtailAdminTemplateMixin
 from wagtail.admin.views.generic.models import (
     CreateView,
     EditView,
@@ -27,10 +28,14 @@ from wagtail.admin.widgets import HeaderButton
 from wagtail.log_actions import log
 from wagtail.permissions import policy_registry
 
+from wagtail_crm.payments.models import Reconciliation
+
 from .models import (
     Dispatch,
     DispatchStatus,
     Letter,
+    donors_due,
+    letter_threshold,
     letter_values,
     needing_charitable_amount,
 )
@@ -38,6 +43,7 @@ from .pdf import render_pdf
 
 ISSUE = "Issue letter"
 RECORD_DISPATCH = "Record dispatch"
+DONORS_DUE = "Donors due a letter"
 # Shown in History as "Issued letter".
 ISSUE_LETTER = "wagtail_crm_letters.issue"
 
@@ -156,6 +162,17 @@ class LetterIndexView(IndexView):
     def get_base_queryset(self):
         return super().get_base_queryset().with_dispatch_status()
 
+    @cached_property
+    def header_buttons(self):
+        return [
+            *super().header_buttons,
+            HeaderButton(
+                DONORS_DUE,
+                url=reverse("wagtail_crm_letters:due"),
+                icon_name="list-ul",
+            ),
+        ]
+
 
 class LetterCreateView(CreateView):
     inspect_url_name = None
@@ -173,7 +190,15 @@ class LetterCreateView(CreateView):
         return super().post(request, *args, **kwargs)
 
     def get_initial(self):
-        return {**super().get_initial(), "corrects": self.request.GET.get("corrects")}
+        # Starting values only: LetterForm decides what can be issued, and an
+        # unknown ID leaves its field empty.
+        query = self.request.GET
+        ids = {
+            name: value
+            for name in ("donor", "reconciliation")
+            if (value := query.get(name, "")).isdecimal()
+        }
+        return {**super().get_initial(), "corrects": query.get("corrects"), **ids}
 
     def get_error_message(self):
         if "preview" in self.request.POST:
@@ -395,11 +420,76 @@ class LetterViewSet(ModelViewSet):
     def pdf_view(self):
         return self.construct_view(LetterPDFView)
 
+    @property
+    def due_view(self):
+        return self.construct_view(DonorsDueView)
+
     def get_urlpatterns(self):
         return [
             *super().get_urlpatterns(),
             path("pdf/<int:pk>/", self.pdf_view, name="pdf"),
+            path("due/", self.due_view, name="due"),
         ]
+
+
+def accepted_periods():
+    return Reconciliation.objects.filter(accepted_at__isnull=False)
+
+
+class PeriodForm(forms.Form):
+    reconciliation = forms.ModelChoiceField(
+        accepted_periods(),
+        label="Period",
+        empty_label=None,
+    )
+
+
+class DonorsDueView(PermissionCheckedMixin, WagtailAdminTemplateMixin, TemplateView):
+    """Donors owed a letter for an accepted period, each issued from here (#26)."""
+
+    model = Letter
+    permission_required = "view"
+    page_title = DONORS_DUE
+    header_icon = "mail"
+    template_name = "wagtail_crm_letters/donors_due.html"
+    index_url_name = None
+    add_url_name = None
+
+    def get_breadcrumbs_items(self):
+        return [
+            *self.breadcrumbs_items,
+            {"url": reverse(self.index_url_name), "label": "Letters"},
+            {"url": "", "label": DONORS_DUE},
+        ]
+
+    def get_period(self):
+        """The chosen accepted period, or the latest one; None if none is."""
+        form = PeriodForm(self.request.GET)
+        if form.is_valid():
+            return form.cleaned_data["reconciliation"]
+        return accepted_periods().first()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        period = self.get_period()
+        rows = []
+        if period is not None:
+            can_issue = self.permission_policy.user_has_permission(
+                self.request.user, "add"
+            )
+            for donor, total in donors_due(period):
+                url = None
+                if can_issue:
+                    query = f"?donor={donor.pk}&reconciliation={period.pk}"
+                    url = reverse(self.add_url_name) + query
+                rows.append((donor, total, url))
+        context.update(
+            period=period,
+            form=PeriodForm(initial={"reconciliation": period}),
+            threshold=letter_threshold(),
+            rows=rows,
+        )
+        return context
 
 
 def letter_page(letter):

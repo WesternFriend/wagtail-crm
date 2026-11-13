@@ -32,7 +32,7 @@ Exit evidence: the synthetic acceptance dataset reconciles; invalid charitable a
 
 ## 3. Preview and issue acknowledgment letters
 
-Staff preview a letter for one donor and an accepted reconciliation's period: the donor's name and address, each contribution with its charitable and goods-or-services amounts, and the charitable total. Issuing stores the PDF and the values it shows, so later edits to the contact or payments do not change it (AC-12). A correction is a new letter linked to the earlier one, whose PDF stays available (AC-13). Letters are issued one at a time with a plain template; organization configuration and batch issuing wait for a real need (#9).
+Staff preview a letter for one donor and an accepted reconciliation's period: the donor's name and address, each contribution with its charitable and goods-or-services amounts, and the charitable total. Issuing stores the PDF and the values it shows, so later edits to the contact or payments do not change it (AC-12). A correction is a new letter linked to the earlier one, whose PDF stays available (AC-13). Letters are issued one at a time with a plain template; organization configuration and batch issuing wait for a real need (#9). Donors due a letter lists, for an accepted period, each donor whose charitable total meets the reporting threshold and who has no letter yet, with an action to issue it (AC-19, #26). The threshold amount and whether it applies per year or per gift wait on the Bookkeeper.
 
 Exit evidence: the mixed-payment example totals $145, a letter cannot be issued before its period is accepted, issued PDFs are served only to staff with letter permissions, and later edits do not alter issued letters.
 
