@@ -360,3 +360,55 @@ class TestPaymentImportBrowser(StaticLiveServerTestCase):
             finally:
                 browser.close()
         assert Payment.objects.checks().count() == 1
+
+    def test_issue_a_letter_from_the_donors_due_list(self):
+        avery = Contact.objects.create(
+            given_name="Avery", family_name="Example", postal_address="1 Example Street"
+        )
+        Payment.objects.create(
+            transaction_id="GIFT5",
+            occurred_at="2026-03-01T12:00:00Z",
+            name="Avery Example",
+            type="Donation Payment",
+            event_code="T0013",
+            status="Completed",
+            currency="USD",
+            gross="300.00",
+            fee="-9.00",
+            net="291.00",
+            donor=avery,
+            charitable_amount="300.00",
+        )
+        Reconciliation.objects.create(
+            start="2026-01-01",
+            end="2026-12-31",
+            paypal_count=1,
+            paypal_gross="300.00",
+            paypal_fees="-9.00",
+            paypal_net="291.00",
+            paypal_refunds="0",
+            accepted_at="2027-01-05T12:00:00Z",
+        )
+        with sync_playwright() as playwright:
+            browser = self.launch(playwright)
+            try:
+                page = self.sign_in(browser)
+                page.get_by_role("link", name="Letters").click()
+                page.get_by_role("link", name="Donors due a letter").click()
+                row = page.get_by_role("row").filter(has_text="Avery Example")
+                expect(row).to_contain_text("300.00")
+                row.get_by_role("link", name="Issue letter").click()
+                expect(page.get_by_role("combobox", name="Period")).to_have_value(
+                    re.compile(r"\d+")
+                )
+                page.get_by_role("button", name="Issue letter").click()
+                expect(page.get_by_text("Issued Avery Example")).to_be_visible()
+
+                page.get_by_role("link", name="Letters").click()
+                page.get_by_role("link", name="Donors due a letter").click()
+                expect(
+                    page.get_by_text("No donors are due a letter for this period.")
+                ).to_be_visible()
+            finally:
+                browser.close()
+        assert Letter.objects.get().donor == avery

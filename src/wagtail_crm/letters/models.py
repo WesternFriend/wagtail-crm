@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.admin.decorators import display
 from django.core.files.storage import storages
 from django.db import models
@@ -11,7 +12,7 @@ from django.utils import timezone
 from wagtail.permission_policies import ModelPermissionPolicy
 
 from wagtail_crm.contacts.models import Contact
-from wagtail_crm.payments.models import Reconciliation
+from wagtail_crm.payments.models import CENT, Reconciliation
 
 DUPLICATE_ORIGINAL = (
     "This donor already has a letter for this period. Issue a correction instead."
@@ -178,6 +179,52 @@ def contributions(donor, reconciliation):
     )
 
 
+def charitable_lines(donor, reconciliation):
+    """The contributions a letter lists: those still charitable after refunds."""
+    return [
+        payment
+        for payment in contributions(donor, reconciliation)
+        if payment.adjusted_charitable_amount > 0
+    ]
+
+
+def charitable_total(lines):
+    """The letter's total of charitable_lines(). The due list uses it too."""
+    return sum((p.adjusted_charitable_amount for p in lines), Decimal("0.00"))
+
+
+def letter_threshold():
+    """The charitable total for the period at which a donor is due a letter.
+
+    A placeholder until the Bookkeeper confirms the amount and basis (#26).
+    """
+    value = getattr(settings, "WAGTAIL_CRM_LETTER_THRESHOLD", "250.00")
+    return Decimal(str(value)).quantize(CENT)
+
+
+def donors_due(reconciliation):
+    """Donors at or over the threshold with no letter for the period, and totals.
+
+    A correction chain starts with an original, so a donor with any letter for
+    the period has one. Tens of donors a year make a Python loop fine.
+    """
+    threshold = letter_threshold()
+    donors = Contact.objects.filter(
+        pk__in=reconciliation.payments.exclude_refunds()
+        .filter(charitable_amount__isnull=False)
+        .values("donor")
+    ).exclude(
+        pk__in=Letter.objects.filter(
+            reconciliation=reconciliation, corrects__isnull=True
+        ).values("donor")
+    )
+    totals = (
+        (donor, charitable_total(charitable_lines(donor, reconciliation)))
+        for donor in donors
+    )
+    return [(donor, total) for donor, total in totals if total >= threshold]
+
+
 def needing_charitable_amount(donor, reconciliation):
     """The donor's rows that block issuing, as reconciliation blockers do."""
     return reconciliation.payments.needing_charitable_amount().filter(donor=donor)
@@ -186,6 +233,7 @@ def needing_charitable_amount(donor, reconciliation):
 def letter_values(donor, reconciliation, corrects=None, issued_at=None):
     """Everything the PDF shows, as strings, so it can be stored as issued."""
     issued_at = issued_at or timezone.now()
+    payments = charitable_lines(donor, reconciliation)
     lines = [
         {
             "date": payment.occurred_at.astimezone(UTC).date().isoformat(),
@@ -198,8 +246,7 @@ def letter_values(donor, reconciliation, corrects=None, issued_at=None):
             "amount": str(payment.adjusted_charitable_amount),
             "goods_or_services": str(payment.non_charitable_amount),
         }
-        for payment in contributions(donor, reconciliation)
-        if payment.adjusted_charitable_amount > 0
+        for payment in payments
     ]
     return {
         "name": donor.display_name,
@@ -208,7 +255,7 @@ def letter_values(donor, reconciliation, corrects=None, issued_at=None):
         "start": reconciliation.start.isoformat(),
         "end": reconciliation.end.isoformat(),
         "lines": lines,
-        "total": str(sum((Decimal(line["amount"]) for line in lines), Decimal("0.00"))),
+        "total": str(charitable_total(payments)),
         "corrects": corrects.values["date"] if corrects else None,
     }
 

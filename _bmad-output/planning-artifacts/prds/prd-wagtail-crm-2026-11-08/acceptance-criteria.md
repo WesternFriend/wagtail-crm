@@ -1,6 +1,6 @@
 # Minimum operational release — acceptance criteria
 
-Each criterion reads "staff do X and see Y". AC-18 covers the contact increment. AC-01 to AC-17 cover the 0.1.0 acknowledgment cycle, and each names the slice issue that delivers it.
+Each criterion reads "staff do X and see Y". AC-18 covers the contact increment. AC-01 to AC-17 and AC-19 cover the 0.1.0 acknowledgment cycle, and each names the slice issue that delivers it.
 
 Run the criteria on synthetic data. Amounts are synthetic USD fixture values, not approved policy. Before the real-data pilot (#12), the bookkeeper confirms the expected totals independently of the app. Keep real donor files out of the repository.
 
@@ -18,6 +18,7 @@ Run the criteria on synthetic data. Amounts are synthetic USD fixture values, no
 | AC-09 | #25 | Record a mailed check for a donor with its date received, check number, amount and charitable amount, then preview the donor's letter and open the period's reconciliation | The check is listed with the payments and appears on the letter like a PayPal payment. The reconciliation compares PayPal rows only and lists the period's checks separately, so the check is not shown as a difference. |
 | AC-10 | #8 | Choose a period (whole UTC days), enter PayPal's totals for the same UTC range, and accept the reconciliation | Count, gross, fees, net and refunds appear next to the entered totals, and any difference is shown. Staff can accept only when every payment in the period has a charitable amount and no refund is unmatched. Letters cannot be issued until staff accept; History shows who accepted and when. |
 | AC-12 | #9 | Issue a donor's letter, then edit the contact's address and one payment | The issued PDF and its stored values do not change. |
+| AC-19 | #26 | Open Letters → Donors due a letter, choose an accepted period, and issue a letter from the list | Each donor whose charitable total for the period meets the threshold and who has no letter for it is listed with that total, the same total the letter shows. Donors below the threshold are not listed. Issue letter opens the issue form for that donor and period, and once issued the donor leaves the list. Only accepted periods can be chosen. |
 | AC-13 | #9 | Issue a correction for an issued letter | A new letter is linked to the earlier one, and the earlier PDF is still available. |
 | AC-14 | #10 | Download an issued letter, record a failed email dispatch, then a successful postal dispatch | Downloading alone leaves the letter unsent. Both attempts are listed with channel, date, outcome and note. Unsent and failed letters can be listed. |
 | AC-15 | #5–#10 | Sign in as a user without payment or letter permissions and open payment, letter and PDF URLs directly | Access is denied and nothing changes. Wagtail's standard model permissions govern access. |
@@ -31,6 +32,7 @@ Each item returns only when a real case shows it is needed.
 - AC-04 (approved historical split policies): staff enter the charitable amount directly in #6.
 - Offline gifts other than mailed checks, and bounced or returned checks, bank deposit reconciliation, scanned check images and batch check entry (#25 covers single mailed checks).
 - AC-11 (batch approval and version invalidation): 0.1.0 issues letters one at a time.
+- Reminders, a per-gift threshold basis, and a screen for configuring the threshold (#26 lists donors due a letter on a per-period total).
 - Reopening an accepted reconciliation after later imports, and recovering from an interrupted import or issuance: Django transactions and ordinary Wagtail behavior are accepted for now.
 - Refund splits beyond reducing the contribution, the portable-export half of the earlier AC-16, delivery-exception closure authority, and the evidence contract, gate-dependency matrix and reconciliation bridge from the earlier draft. Git history keeps that draft.
 

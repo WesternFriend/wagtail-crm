@@ -1,0 +1,34 @@
+{% extends "wagtailadmin/generic/base.html" %}
+
+{% block main_content %}
+    {% if period is None %}
+        <p>No period is accepted yet. Letters are issued for accepted reconciliations.</p>
+    {% else %}
+        <form method="get" class="w-mb-4">
+            {% for field in form %}
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+            {% endfor %}
+            <button type="submit" class="button button-small">Show</button>
+        </form>
+        <p>Donors with ${{ threshold }} or more in charitable gifts for {{ period }}, and no letter yet.</p>
+        {% if rows %}
+            <table class="listing">
+                <thead>
+                    <tr><th>Donor</th><th>Charitable total</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for donor, total, url in rows %}
+                        <tr>
+                            <td>{{ donor }}</td>
+                            <td>${{ total }}</td>
+                            <td>{% if url %}<a class="button button-small" href="{{ url }}">Issue letter</a>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No donors are due a letter for this period.</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}
