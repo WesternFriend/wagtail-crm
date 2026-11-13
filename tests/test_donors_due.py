@@ -122,16 +122,21 @@ def test_issue_link_fills_the_form_and_issues(editor, avery, year):
     form = page.context["form"]
     assert form["donor"].value() == str(avery.pk)
     assert form["reconciliation"].value() == str(year.pk)
+    content = page.content.decode()
+    assert f'name="donor" value="{avery.pk}"' in content
+    assert f'value="{year.pk}" selected' in content
     issue(editor, avery, year)
     assert Letter.objects.get().donor == avery
     assert due(year) == {}
 
 
-@pytest.mark.parametrize("donor_id", ["999999", "abc", ""])
-def test_unknown_ids_leave_the_fields_empty(editor, year, donor_id):
-    response = editor.get(ADD_URL, {"donor": donor_id, "reconciliation": "x"})
+@pytest.mark.parametrize("unknown", ["999999", "abc", ""])
+def test_unknown_ids_leave_the_fields_empty(editor, year, unknown):
+    response = editor.get(ADD_URL, {"donor": unknown, "reconciliation": unknown})
     assert response.status_code == 200
-    assert "selected>" not in response.content.decode().split('name="donor"')[1][:200]
+    content = response.content.decode()
+    assert 'name="donor" value=' not in content
+    assert f'value="{year.pk}" selected' not in content
 
 
 def test_a_tampered_donor_gets_the_forms_errors(editor, avery, blake, year):
@@ -156,4 +161,6 @@ def test_viewers_without_letter_add_see_no_issue_links(staff_user, avery, year):
 def test_users_without_letter_view_cannot_open_the_list(staff_user):
     client = Client()
     client.force_login(staff_user)
-    assert client.get(DUE_URL).status_code in (302, 403)
+    response = client.get(DUE_URL)
+    assert response.status_code == 302
+    assert response["Location"] == reverse("wagtailadmin_home")
