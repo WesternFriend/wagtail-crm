@@ -29,12 +29,12 @@ from wagtail.admin.views.generic.models import (
     CreateView,
     EditView,
     IndexView,
-    InspectView,
 )
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
-from wagtail.admin.viewsets.model import ModelViewSet
 from wagtail.admin.widgets import AdminDateInput, HeaderButton
 from wagtail.log_actions import log
+
+from wagtail_crm.admin_views import CRMViewSet, InspectView
 
 from .models import REFUND_NOT_LINKED, Payment, Reconciliation, Source
 from .paypal import ActivityFileError, read_activity_csv
@@ -373,7 +373,7 @@ class PaymentInspectView(InspectView):
         return refunds_html(self.object, "inspect")
 
 
-class PaymentViewSet(ModelViewSet):
+class PaymentViewSet(CRMViewSet):
     model = Payment
     icon = "table"
     menu_label = "Payments"
@@ -600,7 +600,7 @@ class ReconciliationEditView(EditView):
         return instance
 
 
-class ReconciliationViewSet(ModelViewSet):
+class ReconciliationViewSet(CRMViewSet):
     model = Reconciliation
     icon = "tasks"
     menu_label = "Reconciliations"

@@ -65,6 +65,7 @@ Staff send letters themselves and record each attempt: Record dispatch on a lett
 | Path | Purpose |
 | --- | --- |
 | `src/wagtail_crm/` | Distribution package, not a Django app |
+| `src/wagtail_crm/admin_views.py` | `CRMViewSet`: Wagtail's delete, history, usage and inspect views, checking permission before they look the record up |
 | `src/wagtail_crm/contacts/` | Contact model/form, Wagtail integration, initial migration and namespaced static asset |
 | `src/wagtail_crm/payments/` | Payment model, PayPal CSV reader, import and check views, and Wagtail integration |
 | `src/wagtail_crm/letters/` | Letter model, PDF template and Wagtail integration |

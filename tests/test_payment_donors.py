@@ -198,12 +198,16 @@ def test_clean_without_a_gross_amount_does_not_crash():
     Payment(event_code="T0013", charitable_amount=Decimal(5)).clean()
 
 
-@pytest.mark.parametrize("name", ["choose", "choose_results", "chosen"])
+@pytest.mark.parametrize(
+    "name", ["choose", "choose_results", "chosen", "chosen_multiple"]
+)
 def test_contact_chooser_needs_contact_access(staff_user, avery, name):
     client = Client()
     client.force_login(staff_user)
     args = [avery.pk] if name == "chosen" else []
-    response = client.get(reverse(f"wagtail_crm_contact_chooser:{name}", args=args))
+    response = client.get(
+        reverse(f"wagtail_crm_contact_chooser:{name}", args=args), {"id": avery.pk}
+    )
     assert response.status_code in (302, 403)
     assert "Avery" not in response.content.decode()
 
