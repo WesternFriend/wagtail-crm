@@ -190,11 +190,11 @@ def test_the_sweep_finds_every_crm_url():
     assert set(QUERY) <= names, "Remove query cases for URLs that are gone."
 
 
-@pytest.mark.parametrize(("name", "converters"), URLS, ids=[n for n, _ in URLS])
-def test_crm_url_refuses_alike_and_reveals_nothing(outsider, records, name, converters):
+def assert_refused_alike(send, name, converters, records):
+    """Existing and missing records get the same refusal and show no name."""
     statuses = []
     for path, query in requests(name, converters, records):
-        response = outsider.get(path, query)
+        response = send(path, query)
         assert response.status_code not in (404, 500) or name in EXEMPT, path
         assert NAME not in response.content.decode(), path
         statuses.append(response.status_code)
@@ -203,14 +203,20 @@ def test_crm_url_refuses_alike_and_reveals_nothing(outsider, records, name, conv
     if name not in EXEMPT:
         assert statuses[0] in (302, 403), statuses
 
-    before = snapshot()
-    for path, query in requests(name, converters, records):
+
+@pytest.mark.parametrize(("name", "converters"), URLS, ids=[n for n, _ in URLS])
+def test_crm_url_refuses_alike_and_reveals_nothing(outsider, records, name, converters):
+    assert_refused_alike(outsider.get, name, converters, records)
+
+    def post(path, query):
         data = {
             **POST_DATA,
             **query,
             "donor": records["contact"].pk,
             "reconciliation": records["reconciliation"].pk,
         }
-        response = outsider.post(path, data)
-        assert response.status_code != 500, path
+        return outsider.post(path, data, query_params=query)
+
+    before = snapshot()
+    assert_refused_alike(post, name, converters, records)
     assert snapshot() == before

@@ -34,7 +34,7 @@ from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
 from wagtail.admin.widgets import AdminDateInput, HeaderButton
 from wagtail.log_actions import log
 
-from wagtail_crm.admin_views import CRMViewSet, InspectView
+from wagtail_crm.admin_views import CRMViewSet, InspectView, RefuseBeforeLookupMixin
 
 from .models import REFUND_NOT_LINKED, Payment, Reconciliation, Source
 from .paypal import ActivityFileError, read_activity_csv
@@ -269,16 +269,16 @@ class CheckCreateView(CreateView):
         return []
 
 
-class PaymentEditView(EditView):
+class PaymentEditView(RefuseBeforeLookupMixin, EditView):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         if self.panel is CHECK_PANEL:
             self.form_class = CHECK_PANEL.get_form_class()
 
     def get_panel(self):
-        # Wagtail picks the panel in setup(), before its permission check and
-        # before loading the object. Read only the source here, so a missing
-        # payment is still refused, not reported as missing.
+        # Wagtail picks the panel in setup(); the mixin has already refused
+        # users without change permission. Read only the source: a missing
+        # payment is left for EditView to report.
         pk = str(self.kwargs.get("pk", ""))
         source = (
             Payment.objects.filter(pk=pk).values_list("source", flat=True).first()
