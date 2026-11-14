@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from wagtail.models import ModelLogEntry
 
@@ -276,3 +278,15 @@ def test_edit_refuses_missing_and_existing_checks_alike(editor, staff_user, aver
     for pk in (check.pk, check.pk + 1000):
         response = outsider.get(reverse("wagtail_crm_payments:edit", args=[pk]))
         assert response.status_code in (302, 403), pk
+
+
+def test_edit_reads_no_payment_before_refusing(editor, staff_user, avery):
+    record(editor, avery)
+    staff_user.user_permissions.set(Permission.objects.filter(codename="access_admin"))
+    outsider = Client()
+    outsider.force_login(staff_user)
+    url = reverse("wagtail_crm_payments:edit", args=[Payment.objects.get().pk])
+    with CaptureQueriesContext(connection) as queries:
+        assert outsider.get(url).status_code in (302, 403)
+    table = Payment._meta.db_table
+    assert not [q for q in queries.captured_queries if table in q["sql"]]

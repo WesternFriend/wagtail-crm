@@ -20,14 +20,13 @@ from wagtail.admin.views.generic.models import (
     CreateView,
     EditView,
     IndexView,
-    InspectView,
 )
 from wagtail.admin.views.generic.permissions import PermissionCheckedMixin
-from wagtail.admin.viewsets.model import ModelViewSet
 from wagtail.admin.widgets import HeaderButton
 from wagtail.log_actions import log
 from wagtail.permissions import policy_registry
 
+from wagtail_crm.admin_views import CRMViewSet, InspectView
 from wagtail_crm.payments.models import Reconciliation
 
 from .models import (
@@ -363,7 +362,7 @@ class LetterPDFView(PermissionCheckedMixin, View):
         return private(response)
 
 
-class LetterViewSet(ModelViewSet):
+class LetterViewSet(CRMViewSet):
     model = Letter
     icon = "mail"
     menu_label = "Letters"
@@ -565,7 +564,7 @@ class DispatchIndexView(IndexView):
         return None
 
 
-class DispatchViewSet(ModelViewSet):
+class DispatchViewSet(CRMViewSet):
     model = Dispatch
     icon = "mail"
     url_prefix = "crm/dispatches"

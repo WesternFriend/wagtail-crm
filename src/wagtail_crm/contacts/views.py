@@ -10,13 +10,14 @@ from wagtail.admin.forms.choosers import BaseFilterForm
 from wagtail.admin.views.generic.chooser import (
     ChooseResultsView,
     ChooseView,
+    ChosenMultipleView,
     ChosenView,
     CreateView,
 )
-from wagtail.admin.views.generic.models import InspectView
 from wagtail.admin.viewsets.chooser import ChooserViewSet
-from wagtail.admin.viewsets.model import ModelViewSet
 from wagtail.log_actions import log
+
+from wagtail_crm.admin_views import CRMViewSet, InspectView
 
 from .forms import ContactForm
 from .models import Contact
@@ -32,7 +33,7 @@ class ContactInspectView(InspectView):
         )
 
 
-class ContactViewSet(ModelViewSet):
+class ContactViewSet(CRMViewSet):
     model = Contact
     icon = "user"
     menu_label = "Contacts"
@@ -99,6 +100,10 @@ class ContactChosenView(ContactAccessMixin, ChosenView):
     pass
 
 
+class ContactChosenMultipleView(ContactAccessMixin, ChosenMultipleView):
+    pass
+
+
 class ContactChooserCreateView(CreateView):
     # Wagtail's chooser saves without a log entry; the Contacts form logs one.
     def save_form(self, form):
@@ -120,4 +125,5 @@ class ContactChooserViewSet(ChooserViewSet):
     choose_view_class = ContactChooseView
     choose_results_view_class = ContactChooseResultsView
     chosen_view_class = ContactChosenView
+    chosen_multiple_view_class = ContactChosenMultipleView
     create_view_class = ContactChooserCreateView
