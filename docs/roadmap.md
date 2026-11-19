@@ -40,7 +40,7 @@ Exit evidence: the mixed-payment example totals $145, a letter cannot be issued 
 
 Staff download an issued letter, send it themselves by post or email, and record each attempt: channel, date, outcome and a note, which a failed attempt requires. Downloading alone does not count as sent, and staff can list letters that are not sent yet or whose sending failed; a letter replaced by a correction is not owed a dispatch (AC-14, #10). The app sends no email: a later enhancement would need explicit scope, credentials, retry behavior and tests that prevent unintended or duplicate sends.
 
-Then the Editor runs the whole cycle on synthetic data (#11), the pilot environment is set up (#13), and a restricted real-data pilot is checked against the existing financial records (#12). Exceptions are documented and resolved before real letters are issued.
+Then the Editor [rehearses the whole cycle on synthetic data](paypal-rehearsal.md) (#11), the pilot environment is set up (#13), and a restricted real-data pilot is checked against the existing financial records (#12). Exceptions are documented and resolved before real letters are issued.
 
 Exit evidence: the Editor completes one cycle from import to recorded dispatch and can tell issued, sent, failed and superseded letters apart.
 
