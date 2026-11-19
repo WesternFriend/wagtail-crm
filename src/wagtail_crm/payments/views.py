@@ -5,7 +5,7 @@ from decimal import Decimal
 import django_filters
 from django import forms
 from django.contrib import messages
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils import timezone
@@ -133,6 +133,15 @@ class PaypalImportView(PermissionCheckedMixin, WagtailAdminTemplateMixin, FormVi
         try:
             with transaction.atomic():
                 Payment.objects.bulk_create(payments)
+                # The CSV reader converts every timestamp to UTC.
+                days = {payment.occurred_at.date() for payment in payments}
+                affected = [
+                    str(period)
+                    for period in Reconciliation.objects.filter(
+                        accepted_at__isnull=False
+                    )
+                    if any(period.start <= day <= period.end for day in days)
+                ]
         except IntegrityError:
             messages.error(
                 self.request,
@@ -141,6 +150,11 @@ class PaypalImportView(PermissionCheckedMixin, WagtailAdminTemplateMixin, FormVi
             )
             return redirect(self.add_url_name)
         messages.success(self.request, f"Imported {len(payments)} payments.")
+        if affected:
+            warning = "Imported activity changes an accepted reconciliation. Review its totals."
+            if self.request.user.has_perm("wagtail_crm_payments.view_reconciliation"):
+                warning += " Affected periods: " + ", ".join(affected) + "."
+            messages.warning(self.request, warning)
         return redirect(self.index_url_name)
 
 
@@ -570,11 +584,24 @@ class ReconciliationPanel(Panel):
 
 class ReconciliationEditView(EditView):
     def post(self, request, *args, **kwargs):
-        if self.get_object().accepted_at:
-            # Reopening an accepted reconciliation is deferred (AC trim).
-            messages.error(request, "This reconciliation is accepted.")
-            return redirect(request.path)
-        return super().post(request, *args, **kwargs)
+        pk = self.get_object().pk
+        with transaction.atomic():
+            # Claim the open row before Wagtail loads and validates the form.
+            # This conditional write also takes SQLite's writer lock.
+            if not Reconciliation.objects.filter(pk=pk, accepted_at=None).update(
+                accepted_at=None
+            ):
+                messages.error(request, "This reconciliation is accepted.")
+                return redirect(request.path)
+            if request.POST.get("accept") and connection.vendor == "postgresql":
+                # INSERT holds a conflicting lock through the import's check
+                # for affected periods. This also covers newly inserted rows,
+                # which a SELECT FOR UPDATE on existing payments would miss.
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "LOCK TABLE wagtail_crm_payments_payment IN SHARE MODE"
+                    )
+            return super().post(request, *args, **kwargs)
 
     def save_instance(self):
         instance = super().save_instance()

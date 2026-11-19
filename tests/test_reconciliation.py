@@ -7,10 +7,12 @@ import pytest
 from django.contrib.auth.models import Permission
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 from wagtail.models import ModelLogEntry
 from wagtail.users.models import UserProfile
 
 from wagtail_crm.payments.models import Payment, Reconciliation
+from wagtail_crm.payments.views import ReconciliationEditView
 
 pytestmark = pytest.mark.django_db
 
@@ -165,6 +167,27 @@ def test_accepted_reconciliation_cannot_be_changed(editor, year):
     )
     assert page.status_code == 200
     assert "can no longer be changed" in page.content.decode()
+
+
+def test_acceptance_between_lookup_and_save_rejects_the_stale_edit(editor, monkeypatch):
+    create(editor)
+    reconciliation = Reconciliation.objects.get()
+    get_object = ReconciliationEditView.get_object
+
+    def accept_after_lookup(view, *args, **kwargs):
+        opened = get_object(view, *args, **kwargs)
+        Reconciliation.objects.filter(pk=opened.pk, accepted_at=None).update(
+            accepted_at=timezone.now()
+        )
+        return opened
+
+    monkeypatch.setattr(ReconciliationEditView, "get_object", accept_after_lookup)
+    response = edit(editor, reconciliation, end="2026-06-30", paypal_gross="1.00")
+    assert "This reconciliation is accepted." in response.content.decode()
+    reconciliation.refresh_from_db()
+    assert reconciliation.end == date(2026, 12, 31)
+    assert reconciliation.paypal_gross == Decimal("100.00")
+    assert reconciliation.accepted_at is not None
 
 
 def test_one_reconciliation_per_period(editor, year):
