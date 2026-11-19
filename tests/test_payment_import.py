@@ -3,12 +3,14 @@
 from pathlib import Path
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 from wagtail.users.models import UserProfile
 
-from wagtail_crm.payments.models import Payment
+from wagtail_crm.payments.models import Payment, Reconciliation
 
 pytestmark = pytest.mark.django_db
 
@@ -72,6 +74,45 @@ def test_overlapping_file_adds_only_new_payments(editor):
     confirm(editor, upload(editor))
     confirm(editor, upload(editor, "activity-overlap.csv"))
     assert Payment.objects.count() == 8
+
+
+def test_confirm_flags_only_new_rows_in_accepted_utc_periods(editor, payment_editor):
+    payment_editor.user_permissions.add(
+        Permission.objects.get(codename="view_reconciliation")
+    )
+    preview = upload(editor)
+    # The final receipt is dated Dec 31 in Pacific time but falls on Jan 1 UTC.
+    # Staff accept these periods after preview and before confirmation.
+    for day in ("2026-12-31", "2027-01-01"):
+        Reconciliation.objects.create(
+            start=day,
+            end=day,
+            accepted_at=timezone.now(),
+            paypal_count=0,
+            paypal_gross=0,
+            paypal_fees=0,
+            paypal_net=0,
+            paypal_refunds=0,
+        )
+    result = confirm(editor, preview).content.decode()
+    assert "Affected periods: 2027-01-01 to 2027-01-01." in result
+    assert "2026-12-31 to 2026-12-31" not in result
+    assert Payment.objects.count() == 6
+
+    # An already imported row in an accepted period does not change its totals.
+    Reconciliation.objects.create(
+        start="2026-01-15",
+        end="2026-01-15",
+        accepted_at=timezone.now(),
+        paypal_count=1,
+        paypal_gross=100,
+        paypal_fees=0,
+        paypal_net=100,
+        paypal_refunds=0,
+    )
+    result = confirm(editor, upload(editor, "activity-overlap.csv")).content.decode()
+    assert "Imported 2 payments." in result
+    assert "changes an accepted reconciliation" not in result
 
 
 def test_cancel_discards_the_preview(editor):

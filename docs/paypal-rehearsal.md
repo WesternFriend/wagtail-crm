@@ -2,11 +2,12 @@
 
 ## Prepare a synthetic January download
 
-Follow the [development setup](development.md#setup) with a fresh SQLite file. Set `DATABASE_URL` in the shell **before** migrating, seeding and starting the server. Sign in with a staff account assigned to **CRM Editors**. The demo provides Alex Example and Jordan Sample.
+Follow the [development setup](development.md#setup) with a fresh SQLite file. Set `DATABASE_URL` in the shell **before** migrating, seeding and starting the server. Use the setup superuser to open **Settings → Users → Add a user**. Enter a separate username and password. On the **Roles** tab, select **CRM Editors** under **Groups**, leave **Administrator** unchecked and choose **Create**. Sign out and use the new login for the rehearsal. The demo provides Alex Example and Jordan Sample.
 
 From the repository root, generate the file for the Editor. The script uses a fixed Faker seed and includes 102 January transactions. The first week has two gifts, a partial refund and a pending payment. The later rows exercise the upload at volume while keeping the period small enough to review by hand.
 
 ```sh
+mkdir -p .data
 mise exec -- uv run --script scripts/rehearse_paypal.py > .data/january-activity.csv
 ```
 
@@ -37,6 +38,7 @@ Once staff have the [restricted pilot environment](https://github.com/WesternFri
 
 1. Choose a reporting period. Record its UTC start and exclusive end (midnight after the last day). Confirm the PayPal report's time zone and boundary transactions. If the account uses local dates, export enough surrounding days to cover the UTC interval, then restrict the independent comparison to that interval using each row's time zone.
 2. Export an Activity Download CSV with **Transaction Event Code** selected. Check that it also contains **Reference Txn ID** and **Balance Impact**. Record the row count, file size, date format and time zone values privately. [PayPal report fields](https://developer.paypal.com/reports/activity-download/)
-3. Preview the file. Account for skipped statuses, currencies and transaction types. Investigate unexpected skips, reversals or changes to a known transaction ID before confirming. When a row falls in an already accepted period, flag the affected period for staff review.
+3. Preview the file. Account for skipped statuses, currencies and transaction types. Investigate unexpected skips, reversals or changes to a known transaction ID before confirming.
 4. Have the Bookkeeper independently confirm PayPal's figures for the same UTC range. Compare the count, gross, fees and net of completed USD incoming payments and the separate signed gross of completed USD refunds. Exclude mailed checks and withdrawals. If the report covers different activity, keep the discrepancy visible until staff can explain it. Review any partial refund allocation with the Bookkeeper.
-5. Confirm the import, resolve the in-period payments and refunds, and enter the independently obtained figures in **Reconciliations**. Compare all five differences before accepting. Record the result and any format differences on [#12](https://github.com/WesternFriend/wagtail-crm/issues/12) using synthetic examples for public reports. The pilot ends at reconciliation unless Brylie authorizes issuing real letters.
+5. Confirm the import. If it warns that imported activity changed an accepted period, review that period against its acceptance History with the Bookkeeper. Resolve the in-period payments and refunds.
+6. In **Reconciliations**, enter the UTC start date and the calendar day before the exclusive end as **End**. For an exclusive end of January 8 at 00:00 UTC, enter January 7. Enter the Bookkeeper's figures. Compare all five differences before accepting. Record the result and any format differences on [#12](https://github.com/WesternFriend/wagtail-crm/issues/12) using synthetic examples for public reports. The pilot ends at reconciliation unless Brylie authorizes issuing real letters.
