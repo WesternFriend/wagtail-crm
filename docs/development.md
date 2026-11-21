@@ -2,7 +2,7 @@
 
 This is an alpha project with no existing installations. Wagtail is its only UI; the root redirects to Wagtail login. Use Django/Wagtail built-ins first. Contact fields are ordinary columns; stock actions, permissions and history provide the workflow.
 
-Django 6.1.3 and Wagtail 8.1 are locked in `uv.lock`. Python support is declared in `pyproject.toml`; mise and CI use Python 3.14. SQLite 3.37+ is the default; PostgreSQL requires 15+ and the optional driver.
+Django 6.1.3 and Wagtail 8.1 are locked in `uv.lock`. The package requires Python 3.14, which mise and CI use. SQLite 3.37+ is the default; PostgreSQL requires 15+ and the optional driver.
 
 ## Setup
 
